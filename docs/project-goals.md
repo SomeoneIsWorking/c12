@@ -15,10 +15,12 @@ Success conditions:
   diagnostics.
 - Native overrides, when added, are keyed by complete runtime image identity and address and can call
   the original authenticated guest body through psxport's scoped Lightrec original-call boundary.
+- The offline translator, generated corpus, static dispatcher, and static-only configuration are
+  absent before dynarec implementation begins and cannot be restored as a bridge.
 - The first dynamic discriminator executes `SCUS_946.66` through its first VSync return and continues
   beyond guest PC `0x800A7F90`, the first former static-dispatch miss.
 - The hybrid product reaches representative interactive gameplay with correct input, timing,
-  interrupts, devices, audio, rendering, and measured frame time before the static path is deleted.
+  interrupts, devices, audio, rendering, and measured frame time.
 - An independent emulator, binary analysis, or a separately built test target, including diagnostics,
   remains available for
   first-divergence diagnosis without retaining the static product as an oracle.

@@ -10,8 +10,8 @@ through psxport's pinned Lightrec revision.
 ## Current focus
 
 **S003** — Adopt psxport's per-`Core` Lightrec executor and prove that the gameplay product contains
-no interpreter. Do not regenerate, build, or run the static product. Its retained files are not a
-product, fallback, or oracle.
+no interpreter. The former static product has already been deleted and is not a bridge, fallback, or
+oracle.
 
 ## Capability inventory
 
@@ -22,7 +22,7 @@ product, fallback, or oracle.
 | S003 | The gameplay product executes all non-native guest code through psxport's pinned Lightrec dynarec and contains no interpreter | missing | S001, shared psxport executor | G001 |
 | S004 | The authenticated program returns from first VSync and executes beyond `0x800A7F90` through Lightrec | missing | S003 | G001 |
 | S005 | Representative interactive gameplay passes with correct input, timing, interrupts, devices, audio, rendering, and per-host frame time | missing | S004 | G001 |
-| S006 | The offline translator, generated corpus, static dispatcher, seed-only metadata, and static-only checks are deleted without a compatibility mode | missing | S005 | G001 |
+| S006 | The offline translator, generated corpus, static dispatcher, seed-only metadata, and static-only checks are deleted without a compatibility mode | verified | — | G001 |
 
 ## Evidence and exact gaps
 
@@ -63,6 +63,7 @@ built test oracle for divergence diagnosis.
 
 ### S006 — Static-path removal
 
-Missing capability: only after S005 passes, remove every offline translation and generated-product
-surface in the same milestone. Until then the existing files are retention-only: do not regenerate,
-build, run, select, or use them as an oracle. Removal leaves no legacy mode, fallback, or tombstone.
+Evidence: the tracked emitter/bootstrap path and generated dispatcher were deleted, the ignored
+`generated/` corpus and prior static build tree were removed, and `tests/test_source_policy.py`
+rejects their paths and source markers. CMake now exposes one explicit failing `c12_port` target that
+names the missing psxport Lightrec/typed-exit integration rather than selecting a compatibility mode.

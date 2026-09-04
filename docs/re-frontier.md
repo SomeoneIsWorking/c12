@@ -25,6 +25,17 @@ No further static product generation, build, or run is part of this chain.
 - notes: This records the discriminator, not a static implementation plan and not a claim that VSync
   policy caused the stop.
 
+### runtime.retire-static — Remove the old execution path before replacement work
+
+- status: re-verified
+- deps: runtime.recorded-boundary
+- evidence: The tracked emitter/bootstrap path and generated dispatcher are deleted; the ignored
+  generated corpus and static build tree are absent; the source-policy test rejects their return.
+- where: `CMakeLists.txt`, `tools/source_policy.py`, `tests/test_source_policy.py`
+- gap:
+- notes: CMake and the launcher name the one missing psxport Lightrec/typed-exit boundary. There is no
+  compatibility product, selector, or fallback.
+
 ### runtime.lightrec — Pass the first dynamic discriminator
 
 - status: todo
@@ -49,15 +60,3 @@ No further static product generation, build, or run is part of this chain.
 - notes: Boot, first VSync, logos, menus, attract loops, and FMV are checkpoints only. An independent
   emulator or the interpreter in a separately built test target, including diagnostics, may diagnose a
   divergence but never enters gameplay.
-
-### runtime.retire-static — Delete the old execution path
-
-- status: todo
-- deps: runtime.gameplay
-- evidence:
-- where: build, provisioning, launcher, and static-only artifacts
-- gap: After representative gameplay passes, delete the offline translator, generated corpus, static
-  dispatcher, seed-only metadata, and static-only checks together, then prove a fresh checkout builds
-  and launches from the authenticated user image without them.
-- notes: The retained files are not built or run while awaiting this gate. Removal leaves no
-  compatibility mode, fallback, selector, or tombstone.
