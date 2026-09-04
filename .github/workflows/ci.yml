@@ -1,0 +1,45 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+# The native/dynarec product does not exist yet. This Linux job verifies the
+# asset-free source/configuration boundary without claiming desktop or Android
+# product support.
+jobs:
+  source-boundary:
+    name: Source/configuration policy (Linux host)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - name: Checkout full history
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Install locked uv and Python
+        uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # v10.0.1
+        with:
+          version: '0.10.12'
+          python-version: '3.12'
+          enable-cache: false
+      - name: Verify checkout is not shallow
+        shell: bash
+        run: test "$(git rev-parse --is-shallow-repository)" = false
+      - name: Install locked Python environment
+        run: uv sync --locked
+      - name: Run asset-free source policy tests
+        run: uv run --frozen python -m unittest discover -s tests -p 'test_*.py'
+      - name: Configure and run CTest policy
+        env:
+          CC: clang
+          CXX: clang++
+        run: |
+          cmake -S . -B build/ci -G Ninja -DBUILD_TESTING=ON
+          ctest --test-dir build/ci --output-on-failure

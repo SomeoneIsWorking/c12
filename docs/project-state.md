@@ -23,6 +23,7 @@ oracle.
 | S004 | The authenticated program returns from first VSync and executes beyond `0x800A7F90` through Lightrec | missing | S003 | G001 |
 | S005 | Representative interactive gameplay passes with correct input, timing, interrupts, devices, audio, rendering, and per-host frame time | missing | S004 | G001 |
 | S006 | The offline translator, generated corpus, static dispatcher, seed-only metadata, and static-only checks are deleted without a compatibility mode | verified | — | G001 |
+| S007 | Hosted CI truthfully distinguishes repository policy from native product support on Linux, Windows, macOS, and Android | partial | S003 | G001 |
 
 ## Evidence and exact gaps
 
@@ -67,3 +68,20 @@ Evidence: the tracked emitter/bootstrap path and generated dispatcher were delet
 `generated/` corpus and prior static build tree were removed, and `tests/test_source_policy.py`
 rejects their paths and source markers. CMake now exposes one explicit failing `c12_port` target that
 names the missing psxport Lightrec/typed-exit integration rather than selecting a compatibility mode.
+
+### S007 — Platform CI coverage
+
+Partial capability: `.github/workflows/ci.yml` runs the asset-free source/configuration policy on one
+Linux host with full history, read-only permissions, pinned actions, and an explicit timeout. It does
+not represent that check as a native product build.
+
+| Platform | Applicability | Current CI evidence and exact gap |
+| --- | --- | --- |
+| Linux x86-64 | applicable product target | Source policy and CMake configuration are covered; the missing Lightrec title adapter leaves no native/dynarec executable to compile, test, or package. |
+| Windows x86-64 | applicable product target | Missing: no native/dynarec executable, Windows build, runtime test, or package boundary exists. |
+| macOS arm64 | applicable product target | Missing: no native/dynarec executable, Apple-Silicon build, runtime test, or application package exists. |
+| Android arm64 | applicable product target | Missing: no title Android package, shared `android-port` integration, native runtime, APK build, or install test exists. |
+
+Gap: add each native platform job only when it can exercise the corresponding redistributable
+runtime/package boundary with synthetic inputs. A duplicated source-policy matrix is not platform
+support.
