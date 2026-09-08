@@ -118,11 +118,13 @@ and execution-boundary checks. Its minimal bootstrap fetches the exact `psxport.
 framework setup action owns native packages, dependency revisions, and the Lightning prefix under
 `build/deps/`. Bootstrap/setup refusal and positive mocks, the local native build, focused image/source tests, and
 C++ analysis pass. All local consumer verification components passed, including executable-boundary
-checks; hosted execution of this revised job remains unqualified. This job does not claim a player package or gameplay support.
+checks. Hosted Linux run [34220898626](https://github.com/SomeoneIsWorking/c12/actions/runs/34220898626)
+passed at `58f33fc`, including cold framework/dependency setup and the complete native verifier.
+This job does not claim a player package or gameplay support.
 
 | Platform | Applicability | Current CI evidence and exact gap |
 | --- | --- | --- |
-| Linux x86-64 | applicable product target | The asset-free native startup verifier is wired into CI; hosted execution of the revised job, player packaging, and gameplay qualification remain open. |
+| Linux x86-64 | applicable product target | Hosted native startup verification passed at `58f33fc`; player packaging and gameplay qualification remain open. |
 | Windows x86-64 | applicable product target | Missing: no native/dynarec executable, Windows build, runtime test, or package boundary exists. |
 | macOS arm64 | applicable product target | Missing: no native/dynarec executable, Apple-Silicon build, runtime test, or application package exists. |
 | Android arm64 | applicable product target | Missing: no title Android package, shared `android-port` integration, native runtime, APK build, or install test exists. |
