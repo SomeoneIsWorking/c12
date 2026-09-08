@@ -14,6 +14,16 @@ Configuration is resolved once in `tools/config.py` from `--disc`, `PSXPORT_DISC
 root-level `.chd`, in that order. `bootstrap.py` is a slim entry point and all non-trivial launcher
 logic is modular Python under `tools/`.
 
+The title identity check accepts a directory extracted by psxport's `discdump`:
+
+```sh
+uv run --frozen python -m tools.title_identity scratch/c12-identity
+```
+
+It requires `SYSTEM.CNF` to select `SCUS_946.66` exactly once and checks all 921,600 bytes of
+that executable against the supported USA revision's SHA-256. This is a standalone input check;
+the unavailable gameplay launcher still has no authenticated loader/runner integration.
+
 Run the source-boundary checks without invoking the removed product:
 
 ```sh

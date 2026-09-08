@@ -6,6 +6,7 @@ in `docs/project-state.md`, and evidence order in `docs/re-frontier.md`.
 | Responsibility | Current owner / location | New responsibility goes |
 | --- | --- | --- |
 | Player launch and authenticated image provisioning | `run.sh`, `bootstrap.py`, `tools/config.py`, `tools/launcher.py`, `pyproject.toml`, `uv.lock` | `run.sh` remains a slim shim; the Python launcher resolves and validates the user image, then refuses at the named missing executor boundary until the gameplay product exists |
+| Exact USA executable identity | `tools/title_identity.py`, `tests/test_title_identity.py` | C-12 owns the accepted boot name, complete executable SHA-256, and revision size; psxport owns CHD extraction and the eventual bounded executable mapper |
 | Framework version and PSX execution engine | `psxport.pin`, `external/psxport` | psxport owns the maintained per-`Core` Lightrec integration, CPU synchronization, bounded exits, executable-memory invalidation, and runtime diagnostics; C-12 pins a revision only after its own gates pass |
 | Gameplay composition and title policy | `game/` | C-12 owns its authenticated title identity, lifecycle composition, future frame driver, and deliberately native overrides; every other guest path enters Lightrec |
 | Test-only interpreter | Separately built psxport test target, including diagnostics | psxport test ownership only; never linked into, selected by, or entered from C-12 gameplay |

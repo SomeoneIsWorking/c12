@@ -32,6 +32,15 @@ oracle.
 Evidence: The supplied USA CHD resolves through `SYSTEM.CNF` to `SCUS_946.66`. This proves title
 selection and runtime-image input, not gameplay execution.
 
+The 2026-09-08 fresh extraction resolves the executable at LBA 24 and produces 921,600 bytes with
+SHA-256 `0b93d073ecc211a51431ee8e3eaf8e72f3aa33e6bc0b985a408c0f37a4cc9c87`.
+`tools/title_identity.py` accepts that extraction and rejects missing, wrong-name, ambiguous,
+truncated, oversized, non-ASCII, and changed-byte inputs through the production authentication
+function. Each file is read once with an explicit byte limit; a stale-size metadata discriminator
+proves that later growth cannot bypass those bounds. The standalone
+validator is available through `uv run --frozen python -m tools.title_identity DIRECTORY`; connection
+to the player launcher's executable loading boundary remains part of S003.
+
 ### S002 — Recorded migration boundary
 
 Evidence: The recorded pre-migration path starts `SCUS_946.66`, reaches the previously identified
