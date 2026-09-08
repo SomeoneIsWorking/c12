@@ -33,8 +33,8 @@ No further static product generation, build, or run is part of this chain.
   generated corpus and static build tree are absent; the source-policy test rejects their return.
 - where: `CMakeLists.txt`, `tools/source_policy.py`, `tests/test_source_policy.py`
 - gap:
-- notes: CMake and the launcher name the one missing psxport Lightrec/typed-exit boundary. There is no
-  compatibility product, selector, or fallback.
+- notes: CMake and the player launcher name the missing title field lifecycle/native presentation.
+  There is no static compatibility product or interpreter-only player selector.
 
 ### runtime.lightrec — Pass the first dynamic discriminator
 
@@ -44,8 +44,8 @@ No further static product generation, build, or run is part of this chain.
 - where: `external/psxport`, `psxport.pin`, title composition under `game/`
 - gap: Execute nonzero blocks from authenticated `SCUS_946.66` through psxport's pinned Lightrec,
   cross first VSync through an explicit bounded exit/resume, and continue beyond `0x800A7F90`. Audit
-  the gameplay link, selector, and fallback surfaces to prove that the interpreter in the separately
-  built test target, including diagnostics, is absent and unreachable.
+  the gameplay link and selector surfaces to exclude interpreter-only execution; count the shared
+  backend's bounded compilation/fetch fallback by reason and executed instructions/blocks.
 - notes: Do not invoke an offline translator or generated guest corpus.
 
 ### runtime.gameplay — Reach representative interactive gameplay

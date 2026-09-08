@@ -6,7 +6,7 @@ import re
 from pathlib import Path
 
 RETIRED_PATHS = ("generated", "game/app/main.cpp")
-FORBIDDEN_MARKERS = (
+STATIC_PRODUCT_MARKERS = (
     "tools/recomp/emit.py",
     "rec_sources.cmake",
     "main_dispatch",
@@ -15,6 +15,7 @@ FORBIDDEN_MARKERS = (
     "overlay_table.h",
 )
 SOURCE_SUFFIXES = frozenset({".c", ".cc", ".cpp", ".cxx", ".h", ".hpp"})
+NON_SOURCE_ROOTS = frozenset({".git", ".venv", "build", "external", "scratch"})
 DIRECT_DIAGNOSTICS = re.compile(
     r"(?:fprintf\s*\(\s*stderr|std::c(?:err|log)\b|OutputDebugString|SDL_Log)"
 )
@@ -35,7 +36,7 @@ def check_source_policy(root: Path) -> int:
     candidates.extend(
         path
         for path in (root / "tools").rglob("*.py")
-        if path.name != "source_policy.py"
+        if path.relative_to(root).as_posix() != "tools/source_policy.py"
     )
     paths = sorted(path for path in candidates if path.is_file())
     if not paths:
@@ -45,7 +46,7 @@ def check_source_policy(root: Path) -> int:
         text = path.read_text(encoding="utf-8")
         violations.extend(
             f"{path.relative_to(root)}: {marker}"
-            for marker in FORBIDDEN_MARKERS
+            for marker in STATIC_PRODUCT_MARKERS
             if marker in text
         )
         if path.suffix in SOURCE_SUFFIXES and DIRECT_DIAGNOSTICS.search(text):
@@ -55,7 +56,9 @@ def check_source_policy(root: Path) -> int:
     violations.extend(
         f"{path.relative_to(root)}: project automation must be Python"
         for path in root.rglob("*.sh")
-        if path.is_file() and path.relative_to(root) != Path("run.sh")
+        if path.is_file()
+        and path.relative_to(root) != Path("run.sh")
+        and path.relative_to(root).parts[0] not in NON_SOURCE_ROOTS
     )
     if violations:
         raise SourcePolicyError(

@@ -1,4 +1,4 @@
-"""Resolve C-12 player inputs and stop at the missing shared dynarec boundary."""
+"""Resolve C-12 player inputs and name the unimplemented title presentation boundary."""
 
 from __future__ import annotations
 
@@ -12,7 +12,7 @@ from tools.config import ConfigurationError, resolve_config
 
 ROOT = Path(__file__).resolve().parents[1]
 LOGGER = logging.getLogger("c12.launcher")
-MISSING_RUNTIME = "Lightrec backend and title typed-exit runner are not integrated"
+MISSING_RUNTIME = "title field lifecycle and native presentation are not integrated"
 
 
 def main(argv: Sequence[str] | None = None) -> int:

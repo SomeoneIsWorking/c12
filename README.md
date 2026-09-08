@@ -5,10 +5,10 @@ The offline translator, generated source corpus, static dispatcher, prior build 
 gameplay executable have been deleted before replacement work. They are not retained as a bridge or
 oracle.
 
-The gameplay target is intentionally unavailable until psxport supplies its per-`Core` Lightrec
-executor with typed VSync, exception, fault, and termination exits. `./run.sh` currently validates
-the configured user disc and then refuses by naming that missing boundary; it never emits or builds
-guest source.
+The player target is unavailable until C-12 owns its field lifecycle and native presentation.
+`./run.sh` validates the configured user disc path and then names that boundary. The separate
+`c12_boot_probe` diagnostic authenticates and maps the original executable, then drives bounded
+Lightrec turns without a display scheduler or a player picture.
 
 Configuration is resolved once in `tools/config.py` from `--disc`, `PSXPORT_DISC`, `.env`, or one
 root-level `.chd`, in that order. `bootstrap.py` is a slim entry point and all non-trivial launcher
@@ -21,17 +21,29 @@ uv run --frozen python -m tools.title_identity scratch/c12-identity
 ```
 
 It requires `SYSTEM.CNF` to select `SCUS_946.66` exactly once and checks all 921,600 bytes of
-that executable against the supported USA revision's SHA-256. This is a standalone input check;
-the unavailable gameplay launcher still has no authenticated loader/runner integration.
+that executable against the supported USA revision's SHA-256. `title.json` is the single revision
+authority consumed by Python and the C++ admission code. The native probe hashes its own bounded
+byte buffer with Lucent, then gives those same bytes to psxport's validated executable mapper.
 
-Run the source-boundary checks without invoking the removed product:
+Run the independent verification command with a resolved psxport checkout and its documented native
+dependencies. This uses Clang, Ninja, and the frozen Python interpreter:
 
 ```sh
-uv run --frozen python tests/test_source_policy.py
-CC=clang CXX=clang++ cmake -S . -B build/maintainer
-ctest --test-dir build/maintainer --output-on-failure
+CC=clang CXX=clang++ uv run --frozen python -m tools.verify
 ```
 
-The next product milestone integrates the shared executor, resumes after the first typed VSync exit,
-and proves translated execution beyond `0x800A7F90`. Boot or first VSync alone is not gameplay
-conformance.
+Linux CI fetches `psxport.pin` before invoking that framework's shared setup action and the same
+verifier. Its synthetic admission/style/execution checks require no game files. Dependency checkouts
+and compiler outputs remain under `build/`; hosted success is distinct from real-title qualification.
+
+The boot observation takes an extracted executable, cycles per turn, and maximum turns:
+
+```sh
+build/maintainer/c12_boot_probe scratch/c12-identity/SCUS_946.66 100000 3
+```
+
+It reports every typed exit plus translated/guest/fallback counters and stops at the first non-budget
+exit. It does not advance display fields, present frames, or open an audio stream. The next
+discriminator must cross the first real VSync and execute beyond `0x800A7F90`; first boot execution
+alone is not gameplay conformance. Intended enhancements and platform releases are listed separately
+in [project state](docs/project-state.md).

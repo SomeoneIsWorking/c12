@@ -4,14 +4,18 @@ from __future__ import annotations
 
 import argparse
 import hashlib
+import json
 import logging
 import re
 from dataclasses import dataclass
 from pathlib import Path
 
-EXECUTABLE_NAME = "SCUS_946.66"
-EXECUTABLE_SHA256 = "0b93d073ecc211a51431ee8e3eaf8e72f3aa33e6bc0b985a408c0f37a4cc9c87"
-EXECUTABLE_SIZE = 921600
+_IDENTITY = json.loads(
+    (Path(__file__).resolve().parents[1] / "title.json").read_text(encoding="utf-8")
+)
+EXECUTABLE_NAME: str = _IDENTITY["executable"]
+EXECUTABLE_SHA256: str = _IDENTITY["sha256"]
+EXECUTABLE_SIZE: int = _IDENTITY["size"]
 CONFIG_SIZE_LIMIT = 4096
 
 
