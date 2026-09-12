@@ -2,6 +2,7 @@
 #include "game.h"
 #include "hw_bind.h"
 #include "lightrec_executor.h"
+#include "platform_hle.h"
 #include "title_identity.h"
 
 #include <charconv>
@@ -39,6 +40,8 @@ int probe(const char *path, std::uint64_t cycles, std::uint64_t turns) {
   xa_bind(&core);
   game->gpu.gpu_native_init();
   game->cd.overridesInit();
+  game->platform_hle.initBuiltins();
+  game->platform_hle.requireNativeFrameLoopContract();
   game->pad.overridesInit();
 
   lucent::info("c12.boot",
@@ -50,7 +53,11 @@ int probe(const char *path, std::uint64_t cycles, std::uint64_t turns) {
   auto &executor = core.lightrecExecutor();
   bool faulted = false;
   std::uint64_t completed = 0;
+  std::uint64_t frameBoundaries = 0;
+  std::uint64_t resumedTurns = 0;
+  bool resumePending = false;
   for (; completed < turns; ++completed) {
+    const auto blocksBefore = executor.counters().executedBlocks;
     const auto result = executor.executeUntilExit(core.pc, psx::cpu::ExecutionBudget::fromCycles(cycles));
     lucent::info("c12.boot",
                  "turn {}/{}: {} PC=0x{:08x} cycles={} detail={}",
@@ -60,6 +67,21 @@ int probe(const char *path, std::uint64_t cycles, std::uint64_t turns) {
                  result.guestPc,
                  result.cycles,
                  result.detail);
+    if (resumePending && executor.counters().executedBlocks > blocksBefore) {
+      ++resumedTurns;
+    }
+    resumePending = false;
+    if (result.reason == psx::cpu::ExecutionExitReason::FrameBoundary) {
+      ++frameBoundaries;
+      const auto continuation = core.r[31];
+      if ((continuation & 3u) != 0 || !core.currentImageIdentity(continuation)) {
+        throw std::runtime_error("VSync returned an unaligned or unauthenticated continuation");
+      }
+      lucent::info("c12.boot", "VSync boundary=0x{:08x} continuation=0x{:08x}", result.guestPc, continuation);
+      core.pc = continuation;
+      resumePending = true;
+      continue;
+    }
     if (result.reason != psx::cpu::ExecutionExitReason::BudgetExhausted) {
       faulted = result.reason == psx::cpu::ExecutionExitReason::Fault;
       ++completed;
@@ -67,19 +89,22 @@ int probe(const char *path, std::uint64_t cycles, std::uint64_t turns) {
     }
   }
   const auto &counts = executor.counters();
-  lucent::info("c12.boot",
-               "completed {}/{} turns; translated={} executed-blocks={} instructions={} "
-               "host-dispatches={} cache-hits={} cache-misses={} invalidations={} faults={}",
-               completed,
-               turns,
-               counts.translatedBlocks,
-               counts.executedBlocks,
-               counts.executedInstructions,
-               counts.hostDispatches,
-               counts.cacheHits,
-               counts.cacheMisses,
-               counts.invalidations,
-               counts.faults);
+  lucent::info(
+      "c12.boot",
+      "completed {}/{} turns; frame-boundaries={} resumed-turns={} translated={} executed-blocks={} instructions={} "
+      "host-dispatches={} cache-hits={} cache-misses={} invalidations={} faults={}",
+      completed,
+      turns,
+      frameBoundaries,
+      resumedTurns,
+      counts.translatedBlocks,
+      counts.executedBlocks,
+      counts.executedInstructions,
+      counts.hostDispatches,
+      counts.cacheHits,
+      counts.cacheMisses,
+      counts.invalidations,
+      counts.faults);
   executor.reportFallbackTelemetry("c12 boot probe");
   lucent::info("c12.boot", "scope: authenticated startup only; no display-field scheduler or gameplay qualification");
   return faulted || counts.executedBlocks == 0 ? 1 : 0;

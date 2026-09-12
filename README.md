@@ -42,8 +42,9 @@ The boot observation takes an extracted executable, cycles per turn, and maximum
 build/maintainer/c12_boot_probe scratch/c12-identity/SCUS_946.66 100000 3
 ```
 
-It reports every typed exit plus translated/guest/fallback counters and stops at the first non-budget
-exit. It does not advance display fields, present frames, or open an audio stream. The next
-discriminator must cross the first real VSync and execute beyond `0x800A7F90`; first boot execution
-alone is not gameplay conformance. Intended enhancements and platform releases are listed separately
-in [project state](docs/project-state.md).
+It reports every typed exit plus translated/guest/fallback counters. At a typed VSync boundary it
+observes the guest return address and resumes another bounded Lightrec turn. The probe does not
+advance display fields, present frames, or open an audio stream. Its current real-image route reaches
+VSync but polls it repeatedly; a native field lifecycle is still needed to reach `0x800A7F90`.
+First boot execution alone is not gameplay conformance. Intended enhancements and platform releases
+are listed separately in [project state](docs/project-state.md).

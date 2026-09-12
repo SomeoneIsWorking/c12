@@ -80,13 +80,20 @@ reported reason. The probe was silent and nonpresenting with scratch persistence
 The direct runtime now also publishes the title-owned `PlatformHlePlan` for the recorded libetc
 VSync entry `0x800A1758`, using an exact four-byte admission window. The Clang-built
 `c12_runtime_services` boundary test proves the plan is installed as the shared typed `FrameBoundary`
-handler, preserves the guest continuation register, and refuses the adjacent guest address. This
-unblocks the next real-image discriminator without claiming that it has been reached yet.
+handler, preserves the guest continuation register, and refuses the adjacent guest address. The
+diagnostic boot probe now installs that same plan before guest execution. On the authenticated USA
+executable, its first typed VSync exit occurred after 302,824 cycles at `0x800A1758`; 29 subsequent
+turns resumed guest execution. The entire probe executed 29,230 Lightrec blocks, with zero fallback
+blocks/instructions and zero faults. The first continuation was `0x800B479C`. This proves HLE
+activation and bounded continuation in the real image, not display-field progression.
 
-Gap: this is bounded startup evidence, not the gameplay product, a recovered VSync return, or
-native presentation. The title still needs its field lifecycle, device/service continuation, native
-picture ownership, and interactive qualification. Lightrec warned that the memory map is suboptimal;
-performance remains unqualified. Future native overrides must use complete image identity plus address.
+Gap: the probe loops through VSync calls, eventually repeating the `VSync(-1)` query whose callsite
+is `0x800B4EBC` and continuation is `0x800B4EC4`. The diagnostic neither advances a native display
+field nor supplies the guest query's result. The product's native frame driver must recover this
+title startup/poll lifecycle so guest VSync never becomes a second product frame owner. The title
+still needs device/service continuation, native picture ownership, and interactive qualification.
+Lightrec warned that the memory map is suboptimal; performance remains unqualified. Future native
+overrides must use complete image identity plus address.
 The final pinned configure/build, source/image/style CTests, and executable-boundary positive/negative
 checks passed. The style scanner initially misclassified the rejection tuple in `tools/source_policy.py`;
 the shared scanner now recognizes its literal `STATIC_PRODUCT_MARKERS` declaration without requiring
@@ -94,10 +101,10 @@ a different module location. Focused checks passed after that tooling correction
 
 ### S004 — First dynamic discriminator
 
-Missing capability: execute the authenticated whole program with nonzero Lightrec blocks, cross the
-first VSync as an explicit executor exit/resume, and continue beyond `0x800A7F90`. A pass reports both
-the reached VSync boundary and subsequent guest execution; silence or merely starting the executable
-cannot pass.
+Missing capability: recover the title's startup/field lifecycle under its native driver and continue
+beyond `0x800A7F90` through Lightrec. The current real-image diagnostic reaches and resumes VSync but
+loops in a `VSync(-1)` query because it has no field driver. A pass must report subsequent guest
+execution beyond the recorded address; silence or merely starting the executable cannot pass.
 
 ### S005 — Representative gameplay conformance
 
