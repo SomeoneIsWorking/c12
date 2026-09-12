@@ -44,10 +44,14 @@ No further static product generation, build, or run is part of this chain.
   `PlatformHlePlan`; the diagnostic installs it and the authenticated USA image reaches a typed
   frame-boundary exit after 302,824 cycles, followed by 29 translated continuation turns with no
   fallback or faults. The linked callsite at `0x800B4EBC` passes `-1` in its delay slot and repeats
-  its `VSync(-1)` query at continuation `0x800B4EC4` without a native field tick.
+  its `VSync(-1)` query at continuation `0x800B4EC4` inside stock libcd command function
+  `0x800B4CA8`. That function maintains guest last-position bytes `0x800EEED0..D4`, later exposed
+  through stock libcd accessors `0x800B83F0` and `0x800B8420`.
 - where: `external/psxport`, `psxport.pin`, `game/runtime/c12_platform_facts.*`, and the startup probe
-- gap: Recover the title-owned startup and field lifecycle under a native frame driver, then execute
-  beyond `0x800A7F90` through Lightrec without letting guest VSync own product time. Audit the gameplay
+- gap: Extend the shared synchronous CD owner with typed direct-runtime last-position layout, then
+  publish C-12's measured CD command entry and layout so this stock libcd wait can be owned without
+  stale guest state. Recover the title-owned startup and field lifecycle under a native frame driver,
+  then execute beyond `0x800A7F90` through Lightrec without letting guest VSync own product time. Audit the gameplay
   link and selector surfaces to exclude interpreter-only execution; count the shared backend's
   bounded compilation/fetch fallback by reason and executed instructions/blocks.
 - notes: Do not invoke an offline translator or generated guest corpus.

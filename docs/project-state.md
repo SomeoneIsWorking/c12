@@ -92,6 +92,9 @@ is `0x800B4EBC` and continuation is `0x800B4EC4`. The diagnostic neither advance
 field nor supplies the guest query's result. The product's native frame driver must recover this
 title startup/poll lifecycle so guest VSync never becomes a second product frame owner. The title
 still needs device/service continuation, native picture ownership, and interactive qualification.
+Binary inspection identifies this particular wait inside stock libcd command function `0x800B4CA8`.
+Its native CD replacement also needs direct-runtime ownership of C-12's guest last-position bytes
+`0x800EEED0..D4`; the existing shared handler writes them only through a legacy `GameConfig`.
 Lightrec warned that the memory map is suboptimal; performance remains unqualified. Future native
 overrides must use complete image identity plus address.
 The final pinned configure/build, source/image/style CTests, and executable-boundary positive/negative
