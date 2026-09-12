@@ -15,6 +15,7 @@ public:
   void registerOverrides(Game &) override;
   void bootInit(Core &) override;
   const GuestProgramImage *guestProgramImage() const override;
+  const PlatformHlePlan *platformHlePlan() const override;
   RenderCapabilities renderCapabilities() const override;
   bool guestVramIsPicture(const Game &) const override;
 

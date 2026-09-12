@@ -22,7 +22,11 @@ if(C12_BUILD_RUNTIME)
   string(JSON C12_SHA256 GET "${C12_IDENTITY_JSON}" sha256)
   configure_file(game/image/title_identity.h.in metadata/title_identity.h @ONLY)
 
-  add_library(c12_runtime STATIC game/image/authenticated_image.cpp game/runtime/c12_runtime.cpp)
+  add_library(c12_runtime STATIC
+    game/image/authenticated_image.cpp
+    game/runtime/c12_platform_facts.cpp
+    game/runtime/c12_runtime.cpp
+  )
   target_link_libraries(c12_runtime PUBLIC psxport)
   target_include_directories(c12_runtime PUBLIC
     "${CMAKE_CURRENT_SOURCE_DIR}/game/image"
@@ -53,8 +57,11 @@ if(BUILD_TESTING)
   if(C12_BUILD_RUNTIME)
     add_executable(c12_image_contract tests/test_authenticated_image.cpp)
     target_link_libraries(c12_image_contract PRIVATE c12_runtime)
+    add_executable(c12_runtime_services tests/test_runtime_services.cpp)
+    target_link_libraries(c12_runtime_services PRIVATE c12_runtime)
     add_test(NAME c12_image_contract COMMAND c12_image_contract
       "${CMAKE_CURRENT_SOURCE_DIR}/scratch/tests/c12-image-contract")
+    add_test(NAME c12_runtime_services COMMAND c12_runtime_services)
     add_test(NAME c12_cpp_style COMMAND "${Python3_EXECUTABLE}"
       "${PSXPORT_DIR}/tools/check_cpp_style.py" --root "${CMAKE_CURRENT_SOURCE_DIR}"
       --compile-commands "${CMAKE_CURRENT_BINARY_DIR}/compile_commands.json")

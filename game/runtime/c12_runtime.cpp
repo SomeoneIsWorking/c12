@@ -1,5 +1,7 @@
 #include "c12_runtime.h"
 
+#include "c12_platform_facts.h"
+
 namespace c12 {
 
 C12Runtime::C12Runtime(const psx::cpu::PsxExeImage &header) {
@@ -18,6 +20,10 @@ void C12Runtime::bootInit(Core &) {}
 
 const GuestProgramImage *C12Runtime::guestProgramImage() const {
   return &image_;
+}
+
+const PlatformHlePlan *C12Runtime::platformHlePlan() const {
+  return &c12::platformHlePlan();
 }
 
 RenderCapabilities C12Runtime::renderCapabilities() const {

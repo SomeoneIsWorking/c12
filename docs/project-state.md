@@ -77,6 +77,11 @@ and `ResetGraph` output. Counters reported 149 translated blocks, 28,858 execute
 instructions, 8 host dispatches, 28,709 cache hits, 152 misses, 28,714 invalidations, and zero faults.
 Across three executor calls, fallback and refused fallback were zero blocks/instructions for every
 reported reason. The probe was silent and nonpresenting with scratch persistence overrides.
+The direct runtime now also publishes the title-owned `PlatformHlePlan` for the recorded libetc
+VSync entry `0x800A1758`, using an exact four-byte admission window. The Clang-built
+`c12_runtime_services` boundary test proves the plan is installed as the shared typed `FrameBoundary`
+handler, preserves the guest continuation register, and refuses the adjacent guest address. This
+unblocks the next real-image discriminator without claiming that it has been reached yet.
 
 Gap: this is bounded startup evidence, not the gameplay product, a recovered VSync return, or
 native presentation. The title still needs its field lifecycle, device/service continuation, native

@@ -40,8 +40,10 @@ No further static product generation, build, or run is part of this chain.
 
 - status: todo
 - deps: runtime.recorded-boundary, psxport per-`Core` dynarec executor
-- evidence:
-- where: `external/psxport`, `psxport.pin`, title composition under `game/`
+- evidence: `C12Runtime` now publishes the recorded libetc VSync entry `0x800A1758` through a
+  title-owned `PlatformHlePlan`; `c12_runtime_services` proves the shared typed frame-boundary
+  registration and exact admission window.
+- where: `external/psxport`, `psxport.pin`, `game/runtime/c12_platform_facts.*`, and the startup probe
 - gap: Execute nonzero blocks from authenticated `SCUS_946.66` through psxport's pinned Lightrec,
   cross first VSync through an explicit bounded exit/resume, and continue beyond `0x800A7F90`. Audit
   the gameplay link and selector surfaces to exclude interpreter-only execution; count the shared
