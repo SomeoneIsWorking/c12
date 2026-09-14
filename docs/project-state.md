@@ -148,7 +148,10 @@ framework setup action owns native packages, dependency revisions, and the Light
 C++ analysis pass. All local consumer verification components passed, including executable-boundary
 checks. Hosted Linux run [34220898626](https://github.com/SomeoneIsWorking/c12/actions/runs/34220898626)
 passed at `58f33fc`, including cold framework/dependency setup and the complete native verifier.
-This job does not claim a player package or gameplay support.
+The 2026-09-14 run at the post-CD-binding pin first exposed the shared setup action's duplicated
+Lightrec pin (psxport issue 0051, fixed at `80b041af`); run
+[34898626490](https://github.com/SomeoneIsWorking/c12/actions/runs/34898626490) then passed cold at
+`dab5020`. This job does not claim a player package or gameplay support.
 
 Verification gap under the current C++ policy: the shared style verifier still applies a TU-only
 line filter and has no syntax-aware global-API, extern-declaration, or block-local constant check.
