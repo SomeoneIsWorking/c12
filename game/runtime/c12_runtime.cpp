@@ -14,9 +14,12 @@ void *C12Runtime::createContext(Core &) {
   return nullptr;
 }
 
-void C12Runtime::destroyContext(void *) {}
-void C12Runtime::registerOverrides(Game &) {}
-void C12Runtime::bootInit(Core &) {}
+void C12Runtime::destroyContext(void *) {
+}
+void C12Runtime::registerOverrides(Game &) {
+}
+void C12Runtime::bootInit(Core &) {
+}
 
 const GuestProgramImage *C12Runtime::guestProgramImage() const {
   return &image_;

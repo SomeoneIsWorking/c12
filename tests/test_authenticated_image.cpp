@@ -7,7 +7,7 @@
 #include <lucent/log.h>
 #include <stdexcept>
 
-namespace {
+namespace c12::test {
 
 void require(bool condition, const char *detail) {
   if (!condition) {
@@ -28,9 +28,9 @@ template <typename Function> void requireRefusal(Function function, std::string_
 
 std::vector<std::uint8_t> fixture() {
   std::vector<std::uint8_t> bytes(0x820);
-  constexpr std::array<std::uint8_t, 8> magic{'P', 'S', '-', 'X', ' ', 'E', 'X', 'E'};
+  std::array<std::uint8_t, 8> magic{'P', 'S', '-', 'X', ' ', 'E', 'X', 'E'};
   std::copy(magic.begin(), magic.end(), bytes.begin());
-  const auto word = [&bytes](std::size_t offset, std::uint32_t value) {
+  auto word = [&bytes](std::size_t offset, std::uint32_t value) {
     for (unsigned byte = 0; byte < 4; ++byte) {
       bytes[offset + byte] = static_cast<std::uint8_t>(value >> (byte * 8));
     }
@@ -54,9 +54,9 @@ void checkFileAdmission(const std::filesystem::path &directory,
                         const c12::ExecutableIdentity &identity,
                         std::vector<std::uint8_t> bytes) {
   std::filesystem::create_directories(directory);
-  const auto path = directory / "synthetic.exe";
+  auto path = directory / "synthetic.exe";
   writeFixture(path, bytes);
-  const auto admitted = c12::readAuthenticatedImage(path, identity);
+  auto admitted = c12::readAuthenticatedImage(path, identity);
   require(admitted.bytes == bytes && admitted.header.entry == 0x80010000,
           "file admission did not retain the exact authenticated buffer");
   bytes.push_back(0);
@@ -82,15 +82,16 @@ void checkFileAdmission(const std::filesystem::path &directory,
       "cannot open");
 }
 
-} // namespace
+} // namespace c12::test
 
 int main(int argc, char **argv) {
+  using namespace c12::test;
   try {
     require(argc == 2, "provide the repository-scoped synthetic fixture directory");
     auto bytes = fixture();
-    const c12::ExecutableIdentity fixtureIdentity{
+    c12::ExecutableIdentity fixtureIdentity{
         "synthetic", bytes.size(), "b68e2cd77fc22289d575428378196cfc6b66c2a8aaf1d0d49c84ba25dfefbaa9"};
-    const auto parsed = c12::authenticateImage(bytes, fixtureIdentity);
+    auto parsed = c12::authenticateImage(bytes, fixtureIdentity);
     require(parsed.entry == 0x80010000 && parsed.physicalText.begin == 0x10000,
             "authenticated fixture lost its entry/load range");
     checkFileAdmission(argv[1], fixtureIdentity, bytes);

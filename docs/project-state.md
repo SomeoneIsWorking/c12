@@ -87,16 +87,27 @@ turns resumed guest execution. The entire probe executed 29,230 Lightrec blocks,
 blocks/instructions and zero faults. The first continuation was `0x800B479C`. This proves HLE
 activation and bounded continuation in the real image, not display-field progression.
 
-Gap: the probe loops through VSync calls, eventually repeating the `VSync(-1)` query whose callsite
-is `0x800B4EBC` and continuation is `0x800B4EC4`. The diagnostic neither advances a native display
-field nor supplies the guest query's result. The product's native frame driver must recover this
-title startup/poll lifecycle so guest VSync never becomes a second product frame owner. The title
-still needs device/service continuation, native picture ownership, and interactive qualification.
-Binary inspection identifies this particular wait inside stock libcd command function `0x800B4CA8`.
-Its native CD replacement also needs direct-runtime ownership of C-12's guest last-position bytes
-`0x800EEED0..D4`; the existing shared handler writes them only through a legacy `GameConfig`.
-Lightrec warned that the memory map is suboptimal; performance remains unqualified. Future native
-overrides must use complete image identity plus address.
+Field stepping is now measured on the real image. The probe advances the host display-field clock
+through the shared `gpu_pace_frame` owner once per executor turn, and the guest's own libetc chain
+consumes the VBlank edges: the measured vs-count `0x800EEB98` (zeroed by libetc VSync setup at
+`0x800B0DF8`, incremented by the callback dispatcher at `0x800B0E50`) reached 597 in 600 turns,
+and the `VSync(-1)` query at the recorded call site is answered from that same guest counter
+through the title-published `PlatformHlePlan::vsyncQueryCounterAddress` — an undeclared query
+refuses explicitly rather than aborting. The declared stock CD work area (`0x800EEED0..D4`,
+issue 0002, closed 2026-09-14) is read back by the guest's own `FUN_800b83f0` on its retry path,
+and the previously repeating stock `0x800B4CA8` command wait is crossed. The Clang/Ninja consumer
+gate passed 4/4 CTest with 6/6 production-handler checks and clean first-party clang-tidy under the
+title's enabled diagnostic/analyzer/bugprone/performance/brace configuration.
+
+Gap: startup now stalls inside the title's own per-field CD-read pump (`0x800AFB70`): it issues
+pause/Setloc/Setmode/read through the bound stock command entry, registers a ready callback, and
+retries on its own 60-field timeout forever — the read completion never reaches the guest, so the
+first positive VSync wait still has not occurred in 600 turns (`frame-boundaries=0`). See issue
+0003; that is the next device/service continuation step. The product's native frame driver must
+still recover the rest of the title lifecycle so guest VSync never becomes a second product frame
+owner. The title still needs native picture ownership and interactive qualification. Lightrec warned
+that the memory map is suboptimal; performance remains unqualified. Future native overrides must use
+complete image identity plus address.
 The final pinned configure/build, source/image/style CTests, and executable-boundary positive/negative
 checks passed. The style scanner initially misclassified the rejection tuple in `tools/source_policy.py`;
 the shared scanner now recognizes its literal `STATIC_PRODUCT_MARKERS` declaration without requiring
@@ -105,9 +116,11 @@ a different module location. Focused checks passed after that tooling correction
 ### S004 — First dynamic discriminator
 
 Missing capability: recover the title's startup/field lifecycle under its native driver and continue
-beyond `0x800A7F90` through Lightrec. The current real-image diagnostic reaches and resumes VSync but
-loops in a `VSync(-1)` query because it has no field driver. A pass must report subsequent guest
-execution beyond the recorded address; silence or merely starting the executable cannot pass.
+beyond `0x800A7F90` through Lightrec. The current real-image diagnostic advances host display fields
+through the shared pacer, answers `VSync(-1)` from the guest's own vs-count, and crosses the stock
+CD command wait, but the title's read pump never sees its CD read complete, so no positive VSync
+boundary has occurred in 600 turns (issue 0003). A pass must report subsequent guest execution beyond
+the recorded address; silence or merely starting the executable cannot pass.
 
 ### S005 — Representative gameplay conformance
 
@@ -136,6 +149,12 @@ C++ analysis pass. All local consumer verification components passed, including 
 checks. Hosted Linux run [34220898626](https://github.com/SomeoneIsWorking/c12/actions/runs/34220898626)
 passed at `58f33fc`, including cold framework/dependency setup and the complete native verifier.
 This job does not claim a player package or gameplay support.
+
+Verification gap under the current C++ policy: the shared style verifier still applies a TU-only
+line filter and has no syntax-aware global-API, extern-declaration, or block-local constant check.
+C-12 now enables diagnostic/analyzer/bugprone/performance/brace checks and first-party header
+selection, and all six first-party translation units pass clang-tidy under that configuration; the
+shared mechanical-enforcement upgrade remains pending.
 
 | Platform | Applicability | Current CI evidence and exact gap |
 | --- | --- | --- |

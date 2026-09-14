@@ -40,18 +40,20 @@ No further static product generation, build, or run is part of this chain.
 
 - status: todo
 - deps: runtime.recorded-boundary, psxport per-`Core` dynarec executor
-- evidence: `C12Runtime` publishes the recorded libetc VSync entry `0x800A1758` through a title-owned
-  `PlatformHlePlan`; the diagnostic installs it and the authenticated USA image reaches a typed
-  frame-boundary exit after 302,824 cycles, followed by 29 translated continuation turns with no
-  fallback or faults. The linked callsite at `0x800B4EBC` passes `-1` in its delay slot and repeats
-  its `VSync(-1)` query at continuation `0x800B4EC4` inside stock libcd command function
-  `0x800B4CA8`. That function maintains guest last-position bytes `0x800EEED0..D4`, later exposed
-  through stock libcd accessors `0x800B83F0` and `0x800B8420`.
+- evidence: `C12Runtime` publishes the recorded libetc VSync entry `0x800A1758`, its negative-query
+  vs-count `0x800EEB98` (zeroed by VSync setup `0x800B0DF8`, incremented by the callback dispatcher
+  `0x800B0E50`), the stock libcd command entry `0x800B4CA8`, and its guest work area
+  `0x800EEED0..D4` through the title-owned `PlatformHlePlan`. The diagnostic now steps the host
+  display-field clock through the shared `gpu_pace_frame` owner per executor turn: on the
+  authenticated USA image 600 turns raised 597 guest vs-counts, the previously repeating
+  `VSync(-1)`/stock-command wait is crossed, and the guest reads back the published
+  `CdLastPos` bytes through its own accessor. Fallback and faults remain zero.
 - where: `external/psxport`, `psxport.pin`, `game/runtime/c12_platform_facts.*`, and the startup probe
-- gap: Extend the shared synchronous CD owner with typed direct-runtime last-position layout, then
-  publish C-12's measured CD command entry and layout so this stock libcd wait can be owned without
-  stale guest state. Recover the title-owned startup and field lifecycle under a native frame driver,
-  then execute beyond `0x800A7F90` through Lightrec without letting guest VSync own product time. Audit the gameplay
+- gap: Deliver the startup CD read completion to the guest's registered ready callback so the title
+  read pump at `0x800AFB70` crosses its retry cycle (issue 0003); then observe the first positive
+  VSync `FrameBoundary` exit under field stepping and recover the rest of the title startup and
+  field lifecycle toward a native frame driver, then execute beyond `0x800A7F90` through Lightrec
+  without letting guest VSync own product time. Audit the gameplay
   link and selector surfaces to exclude interpreter-only execution; count the shared backend's
   bounded compilation/fetch fallback by reason and executed instructions/blocks.
 - notes: Do not invoke an offline translator or generated guest corpus.

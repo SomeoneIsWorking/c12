@@ -11,12 +11,12 @@ psx::cpu::PsxExeImage authenticateImage(std::span<const std::uint8_t> bytes, con
   if (bytes.size() != identity.size) {
     throw std::runtime_error(std::string(identity.name) + ": unexpected executable length");
   }
-  const auto digest = lucent::content::sha256_hex(lucent::content::sha256(std::as_bytes(bytes)));
+  auto digest = lucent::content::sha256_hex(lucent::content::sha256(std::as_bytes(bytes)));
   if (digest != identity.sha256) {
     throw std::runtime_error(std::string(identity.name) + ": executable SHA-256 mismatch: " + digest);
   }
-  const auto parsed = psx::cpu::parsePsxExeImage(bytes);
-  if (!parsed) {
+  auto parsed = psx::cpu::parsePsxExeImage(bytes);
+  if (!parsed.image.has_value()) {
     throw std::runtime_error(std::string(identity.name) + ": " + parsed.detail);
   }
   return *parsed.image;
@@ -36,7 +36,7 @@ AuthenticatedImage readAuthenticatedImage(const std::filesystem::path &path, con
     throw std::runtime_error("cannot read executable: " + path.string());
   }
   bytes.resize(static_cast<std::size_t>(input.gcount()));
-  const auto header = authenticateImage(bytes, identity);
+  auto header = authenticateImage(bytes, identity);
   return {std::move(bytes), header};
 }
 
