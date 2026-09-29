@@ -37,3 +37,11 @@ CD-IRQ (I_STAT bit 2), whether the guest's IRQ dispatcher claims it (the one log
 element claimed it (0 in chain)` line was the VBlank edge via custom exception exit), and whether
 `FUN_800af4a8` is ever entered. The retry period proves field timing is live; the missing link is
 between read-kick acknowledgement and guest callback entry.
+
+## Untested hypothesis (2026-09-29)
+
+A stopped session left an unverified edit that removed `cdCommandAddress` and the stock work area
+from `kPlatformHlePlan`, on the theory that C-12's threaded libcd must drive the emulated CDC through
+its own guest body and that the synchronous shared command owner swallows the read completion. It
+was dropped unverified. Test it as the discriminator above: unbind, run the authenticated probe, and
+count `CdRead: retry...` lines and entries to `FUN_800af4a8` against the bound baseline.
