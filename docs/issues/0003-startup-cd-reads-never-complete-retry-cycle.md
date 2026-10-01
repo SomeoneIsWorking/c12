@@ -1,8 +1,37 @@
 # C-12 startup stock-libcd reads never complete; the title pumps a 60-field retry cycle
 
-- status: open
+- status: resolved 2026-10-01
 - state: S003, S004
 - discovered: 2026-09-14
+
+## Resolution (2026-10-01)
+
+The guest waits for a BIOS CD-ROM interrupt that calls the function pointer in its own libcd
+`CdReadyCallback` slot, `0x800EEEBC` (`FUN_800AC158` stores to it; `FUN_800AF7EC` installs
+`FUN_800AF4A8` and `FUN_800AF4A8` restores the saved value). Four defects stood between that and a
+delivered completion, all in framework owners, none of them address hacks:
+
+1. **The title declared nothing to deliver to.** psxport's stand-in for the BIOS CD-ROM interrupt
+   handler serves only a title that declares `GuestCdStreamCallbackLayout`; C-12 declared none, so
+   the ready callback had no owner. It now declares its measured slot with `GuestInterrupt`
+   delivery (the completion arrives as INT1, which is what the linked libcd contract says) and
+   libcd's data-ready code 1, the value `FUN_800AF4A8` branches on.
+2. **Both owners delivered the same sector.** `cd_drive_stock_read` burst the callback straight out
+   of `CdControl(ReadN)` without touching the controller, so the controller's own data-ready
+   response stayed owed and the interrupt arm delivered it again to whatever callback was installed
+   by then. `Cd::pumpStream` already made the two owners exclusive; the finite-read path did not.
+3. **A command the framework had already answered executed after the next one.** The
+   synchronous command owner answers the guest immediately, but `cdc_issue_command` scheduled the
+   controller's Pause on the guest clock; it then executed after the guest's `ReadN` and cancelled
+   that read's own sector event. A framework-issued command now runs to completion in line.
+4. **A chained read served one sector twice, then stopped.** The request register was a pure latch,
+   so the repeated `BFRD` write stock libcd issues per sector presented nothing, and the read ran
+   three sectors deep before stalling. A request now presents the announced sector once the guest
+   holds the previous sector's payload, and that handoff re-arms the drive's own clock.
+
+Result on the authenticated image: the retry cycle is crossed and stays crossed — a 2,000-turn run
+contains no `CdRead: retry...` and no `CdRead: sector error`, 121-sector reads stream continuously,
+and the title proceeds to load and execute its own disc-loaded module.
 
 ## Evidence
 

@@ -29,6 +29,14 @@ const PlatformHlePlan *C12Runtime::platformHlePlan() const {
   return &c12::platformHlePlan();
 }
 
+const GuestCdStreamCallbackLayout *C12Runtime::guestCdStreamCallbackLayout() const {
+  return &c12::kCdStreamCallbackLayout;
+}
+
+GuestAddressRange C12Runtime::guestCodeModuleWindow() const {
+  return c12::kGuestCodeModuleWindow;
+}
+
 RenderCapabilities C12Runtime::renderCapabilities() const {
   return RenderCapabilities::direct();
 }

@@ -16,6 +16,8 @@ public:
   void bootInit(Core &) override;
   const GuestProgramImage *guestProgramImage() const override;
   const PlatformHlePlan *platformHlePlan() const override;
+  const GuestCdStreamCallbackLayout *guestCdStreamCallbackLayout() const override;
+  GuestAddressRange guestCodeModuleWindow() const override;
   RenderCapabilities renderCapabilities() const override;
   bool guestVramIsPicture(const Game &) const override;
 

@@ -4,6 +4,8 @@
 #include "execution_control.h"
 #include "execution_exit.h"
 #include "game.h"
+#include "guest_cd_stream_callback_layout.h"
+#include "guest_code_module.h"
 #include "platform_hle.h"
 #include "psx_exe_image.h"
 #include "runtime_service_fixture.h"
@@ -127,6 +129,42 @@ void test_c12_cd_work_area(GameRuntime &runtime, bool declared) {
           "CD work area publication overwrote adjacent guest state");
 }
 
+// The two facts this milestone added are about what the framework must be allowed to DO with the
+// guest's own CD path: call the ready callback the guest registered, and execute the code the
+// guest's loader put in its RAM arena. Both are refusals when undeclared, so both are checked
+// through the same owner the product uses.
+void test_c12_declares_guest_interrupt_cd_delivery() {
+  psx::cpu::PsxExeImage image{};
+  c12::C12Runtime runtime(image);
+  const auto *layout = runtime.guestCdStreamCallbackLayout();
+  require(layout != nullptr, "C-12 published no CD ready-callback layout");
+  require(layout->valid(), "C-12 declared no guest ready-callback slot");
+  require(layout->readyCallbackPointer == c12::kCdReadyCallbackSlotAddress,
+          "C-12 declared a ready-callback slot other than its measured libcd word");
+  require(layout->owner == GuestCdStreamCallbackLayout::DeliveryOwner::GuestInterrupt,
+          "C-12 handed CD completion to the host pump instead of its own CD interrupt path");
+  require(layout->readyStatus == c12::kCdReadyStatus, "C-12 declared a foreign completion code");
+}
+
+void test_c12_declares_runtime_code_module_window(GameRuntime &runtime) {
+  psxport_install_game(runtime);
+  auto game = std::make_unique<Game>();
+  Core &core = game->core;
+  const GuestAddressRange window = guestCodeModuleWindow(core);
+  require(window.valid(), "C-12 declared no window for its runtime-loaded code");
+  require(window.containsPhysical(c12::kCdReadyCallbackSlotAddress ^ 0x80000000u) == false,
+          "the C-12 module window swallowed a guest global");
+  // The measured GT.LVB load, end to end: a CD transfer landing inside the window makes it an
+  // executable residency, and one landing outside it changes nothing.
+  require(!core.currentImageIdentity(0x801211E0u).has_value(),
+          "C-12 module RAM was already a residency before any module load");
+  publishGuestCodeModuleLanding(core, {0x0011F9BCu, 0x001201BCu});
+  require(core.currentImageIdentity(0x801211E0u).has_value(),
+          "the measured GT.LVB module is still not executable after its load landed");
+  require(core.currentImageIdentity(c12::kCdReadyCallbackSlotAddress).has_value() == false,
+          "a CD landing activated guest RAM outside the declared window");
+}
+
 } // namespace c12::test
 
 int main() {
@@ -135,12 +173,16 @@ int main() {
     c12::test::test_c12_installs_typed_frame_boundary_without_guest_override();
     c12::test::test_c12_vsync_negative_query_answers_guest_counter();
     c12::test::test_c12_does_not_admit_adjacent_guest_code();
+    c12::test::test_c12_declares_guest_interrupt_cd_delivery();
     psx::cpu::PsxExeImage image{};
     c12::C12Runtime runtime(image);
     c12::test::test_c12_cd_work_area(runtime, true);
     c12::test::UndeclaredCdWorkAreaRuntime undeclared;
     c12::test::test_c12_cd_work_area(undeclared, false);
-    lucent::info("c12.runtime", "PASS: 6/6 C-12 VSync/query/admission and stock CD work-area checks");
+    c12::test::test_c12_declares_runtime_code_module_window(runtime);
+    lucent::info("c12.runtime",
+                 "PASS: 8/8 C-12 VSync/query/admission, stock CD work-area, CD ready-callback and "
+                 "runtime-code-module checks");
     return 0;
   } catch (const std::exception &error) {
     lucent::error("c12.runtime", "FAIL: {}", error.what());

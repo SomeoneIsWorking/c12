@@ -44,9 +44,11 @@ build/maintainer/c12_boot_probe scratch/c12-identity/SCUS_946.66 100000 3
 
 It reports every typed exit plus translated/guest/fallback counters. At a typed VSync boundary it
 observes the guest return address and resumes another bounded Lightrec turn. The probe steps the
-host display-field clock but does not present frames or open an audio stream. On the real image it
-crosses the stock CD command wait and then stalls in the title's own CD-read pump (issue 0003); a
-native field lifecycle is still needed to reach `0x800A7F90`.
+host display-field clock but does not present frames or open an audio stream. On the real image the
+startup CD reads complete through the guest's own registered ready callback, the title loads and
+executes its disc-resident module (`RELOCS/GT.LVB`) out of its RAM arena, and the guest runs its
+per-field loop and submits drawing primitives; a native field lifecycle and the packet-pool geometry
+are still needed before a picture exists.
 First boot execution alone is not gameplay conformance. Intended enhancements and platform releases
 are listed separately in [project state](docs/project-state.md).
 
