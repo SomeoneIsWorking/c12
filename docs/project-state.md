@@ -1,244 +1,33 @@
 # Project state
 
-## Comparison baseline
+Baseline: the unmodified USA PlayStation release of *C-12: Final Resistance* on hardware or an
+emulator. The intended product authenticates the user's image, runs native title-owned overrides,
+and translates all remaining guest code at runtime through psxport's pinned Lightrec revision.
 
-The baseline is the unmodified USA PlayStation release of *C-12: Final Resistance* on original
-hardware or a PS1 emulator. The intended product authenticates the user's image, executes any
-title-owned native overrides directly, and translates every remaining MIPS instruction at runtime
-through psxport's pinned Lightrec revision.
+Current focus: issue 0003 — deliver the startup CD read completion to the guest's ready callback so
+the title read pump at `0x800AFB70` crosses its retry cycle and a positive VSync boundary is reached.
+Ordered RE evidence lives in `docs/re-frontier.md`.
 
-## Current focus
-
-**S003** — Compose the authenticated title over psxport's per-`Core` Lightrec executor and recover
-the field lifecycle needed by the player product. Interpreter-only execution remains diagnostic;
-backend fallback must be bounded and explicitly counted. The deleted static product is not a bridge
-or oracle.
-
-## Capability inventory
-
-| ID | Capability / observable outcome | State | Dependencies | Goals |
-| --- | --- | --- | --- | --- |
-| S001 | The USA disc resolves through `SYSTEM.CNF` to authenticated `SCUS_946.66` | verified | — | G001 |
-| S002 | The pre-migration execution boundary is recorded through first VSync and guest PC `0x800A7F90` | verified | S001 | G001 |
-| S003 | The gameplay product executes non-native guest code dynarec-first with bounded, reason-coded fallback accounting | partial | S001, shared psxport executor | G001 |
-| S004 | The authenticated program returns from first VSync and executes beyond `0x800A7F90` through Lightrec | missing | S003 | G001 |
-| S005 | Representative interactive gameplay passes with correct input, timing, interrupts, devices, audio, rendering, and per-host frame time | missing | S004 | G001 |
-| S006 | The offline translator, generated corpus, static dispatcher, seed-only metadata, and static-only checks are deleted without a compatibility mode | verified | — | G001 |
-| S007 | Hosted CI truthfully distinguishes repository policy from native product support on Linux, Windows, macOS, and Android | partial | S003 | G001 |
-| S008 | Widescreen renders additional source geometry with correct projection and culling | missing | S009 | G002 |
-| S009 | Native scene construction produces the C-12 picture from recovered title state | missing | S005 | G002 |
-| S010 | 60 fps source-geometry interpolation preserves authored simulation timing | missing | S009 | G002 |
-| S011 | Asynchronous loading removes waiting-only screens; logos/sequences support complete cancellation | missing | S005 | G002 |
-| S012 | No-terminal file picker authenticates the complete user installation, including bounded nested ZIP input | missing | S001 | G003 |
-| S013 | Saves and settings persist in OS application data with reset/reselection support | missing | S012 | G003 |
-| S014 | Physical controller and keyboard controls drive the intended title actions | missing | S005 | G002 |
-| S015 | Authored SVG touch controls support multitouch, cancellation, safe areas, and controller handover | missing | S014 | G003 |
-| S016 | Asset-free Linux AppImage installs and runs qualified gameplay | missing | S005, S009, S012, S013 | G003 |
-| S017 | Asset-free Windows package installs and runs qualified gameplay | missing | S005, S009, S012, S013 | G003 |
-| S018 | Asset-free macOS application runs qualified gameplay on its declared architectures | missing | S005, S009, S012, S013 | G003 |
-| S019 | Android APK provides arm64 dynarec gameplay, SVG touch input, and measured device performance | missing | S005, S009, S012, S013, S015 | G003 |
-| S020 | WebAssembly/GitHub Pages release executes the shipping runtime and renders native C-12 gameplay | missing | S005, S009, S012 | G003 |
-| S021 | Independent oracle comparison diagnoses execution, gameplay, input, rendering, and audio differences | missing | S003 | G002, G003 |
-
-## Evidence and exact gaps
-
-### S001 — Authenticated target
-
-Evidence: The supplied USA CHD resolves through `SYSTEM.CNF` to `SCUS_946.66`. This proves title
-selection and runtime-image input, not gameplay execution.
-
-The 2026-09-08 fresh extraction resolves the executable at LBA 24 and produces 921,600 bytes with
-SHA-256 `0b93d073ecc211a51431ee8e3eaf8e72f3aa33e6bc0b985a408c0f37a4cc9c87`.
-`tools/title_identity.py` accepts that extraction and rejects missing, wrong-name, ambiguous,
-truncated, oversized, non-ASCII, and changed-byte inputs through the production authentication
-function. Each file is read once with an explicit byte limit; a stale-size metadata discriminator
-proves that later growth cannot bypass those bounds. The standalone
-validator is available through `uv run --frozen python -m tools.title_identity DIRECTORY`; connection
-to the player launcher's executable loading boundary remains part of S003.
-
-### S002 — Recorded migration boundary
-
-Evidence: The recorded pre-migration path starts `SCUS_946.66`, reaches the previously identified
-libetc VSync boundary once, and then refuses guest PC `0x800A7F90`. That address is retained as a
-discriminator because it identifies the first path the former static dispatcher did not own. It is
-not evidence for a title frame-loop defect or a VSync configuration defect.
-
-### S003 — Native/dynarec product
-
-Partial capability: `c12_boot_probe` authenticates one bounded input buffer from `title.json`, maps
-those same bytes through the shared PS-X EXE owner, composes C-12's resident image, and executes through
-the per-`Core` Lightrec executor. The 2026-09-08 Clang 22.1.8/Ninja build compiled both the probe and
-image contract; all four C++ translation units passed Clang-Tidy, six authored source/header files
-passed formatting, and focused source-policy/image CTests passed 2/2.
-
-The exact USA executable completed three 100,000-cycle diagnostic turns with budget-exhausted exits
-at `0x800A8464` (100,008 cycles), `0x800A8464` (100,000), and `0x800B84FC` (100,030), reaching `InitHeap`
-and `ResetGraph` output. Counters reported 149 translated blocks, 28,858 executed blocks, 139,283
-instructions, 8 host dispatches, 28,709 cache hits, 152 misses, 28,714 invalidations, and zero faults.
-Across three executor calls, fallback and refused fallback were zero blocks/instructions for every
-reported reason. The probe was silent and nonpresenting with scratch persistence overrides.
-The direct runtime now also publishes the title-owned `PlatformHlePlan` for the recorded libetc
-VSync entry `0x800A1758`, using an exact four-byte admission window. The Clang-built
-`c12_runtime_services` boundary test proves the plan is installed as the shared typed `FrameBoundary`
-handler, preserves the guest continuation register, and refuses the adjacent guest address. The
-diagnostic boot probe now installs that same plan before guest execution. On the authenticated USA
-executable, its first typed VSync exit occurred after 302,824 cycles at `0x800A1758`; 29 subsequent
-turns resumed guest execution. The entire probe executed 29,230 Lightrec blocks, with zero fallback
-blocks/instructions and zero faults. The first continuation was `0x800B479C`. This proves HLE
-activation and bounded continuation in the real image, not display-field progression.
-
-Field stepping is now measured on the real image. The probe advances the host display-field clock
-through the shared `gpu_pace_frame` owner once per executor turn, and the guest's own libetc chain
-consumes the VBlank edges: the measured vs-count `0x800EEB98` (zeroed by libetc VSync setup at
-`0x800B0DF8`, incremented by the callback dispatcher at `0x800B0E50`) reached 597 in 600 turns,
-and the `VSync(-1)` query at the recorded call site is answered from that same guest counter
-through the title-published `PlatformHlePlan::vsyncQueryCounterAddress` — an undeclared query
-refuses explicitly rather than aborting. The declared stock CD work area (`0x800EEED0..D4`,
-issue 0002, closed 2026-09-14) is read back by the guest's own `FUN_800b83f0` on its retry path,
-and the previously repeating stock `0x800B4CA8` command wait is crossed. The Clang/Ninja consumer
-gate passed 4/4 CTest with 6/6 production-handler checks and clean first-party clang-tidy under the
-title's enabled diagnostic/analyzer/bugprone/performance/brace configuration.
-
-Gap: startup now stalls inside the title's own per-field CD-read pump (`0x800AFB70`): it issues
-pause/Setloc/Setmode/read through the bound stock command entry, registers a ready callback, and
-retries on its own 60-field timeout forever — the read completion never reaches the guest, so the
-first positive VSync wait still has not occurred in 600 turns (`frame-boundaries=0`). See issue
-0003; that is the next device/service continuation step. The product's native frame driver must
-still recover the rest of the title lifecycle so guest VSync never becomes a second product frame
-owner. The title still needs native picture ownership and interactive qualification. Lightrec warned
-that the memory map is suboptimal; performance remains unqualified. Future native overrides must use
-complete image identity plus address.
-The final pinned configure/build, source/image/style CTests, and executable-boundary positive/negative
-checks passed. The style scanner initially misclassified the rejection tuple in `tools/source_policy.py`;
-the shared scanner now recognizes its literal `STATIC_PRODUCT_MARKERS` declaration without requiring
-a different module location. Focused checks passed after that tooling correction.
-
-### S004 — First dynamic discriminator
-
-Missing capability: recover the title's startup/field lifecycle under its native driver and continue
-beyond `0x800A7F90` through Lightrec. The current real-image diagnostic advances host display fields
-through the shared pacer, answers `VSync(-1)` from the guest's own vs-count, and crosses the stock
-CD command wait, but the title's read pump never sees its CD read complete, so no positive VSync
-boundary has occurred in 600 turns (issue 0003). A pass must report subsequent guest execution beyond
-the recorded address; silence or merely starting the executable cannot pass.
-
-### S005 — Representative gameplay conformance
-
-Missing capability: establish and drive a bounded interactive gameplay scenario. Boot, first VSync,
-logos, menus, attract mode, and FMV remain checkpoints only. The scenario must prove meaningful input
-response and cover relevant guest state, memory, interrupt/timing, devices, audio, rendering, and
-frame-time behavior on each released host architecture, using an independent emulator or separately
-built test oracle for divergence diagnosis.
-
-### S006 — Static-path removal
-
-Evidence: the tracked emitter/bootstrap path and generated dispatcher were deleted, the ignored
-`generated/` corpus and prior static build tree were removed, and `tests/test_source_policy.py`
-rejects their paths and source markers. CMake now exposes one explicit failing `c12_port` target that
-names the title's unimplemented field lifecycle/native presentation rather than selecting a
-compatibility mode.
-
-### S007 — Platform CI coverage
-
-Partial capability: `.github/workflows/ci.yml` now connects the Linux native startup boundary to
-`tools.verify` with Clang and frozen Python, including synthetic file/span admission, style, source,
-and execution-boundary checks. Its minimal bootstrap fetches the exact `psxport.pin`; the shared
-framework setup action owns native packages, dependency revisions, and the Lightning prefix under
-`build/deps/`. Bootstrap/setup refusal and positive mocks, the local native build, focused image/source tests, and
-C++ analysis pass. All local consumer verification components passed, including executable-boundary
-checks. Hosted Linux run [34220898626](https://github.com/SomeoneIsWorking/c12/actions/runs/34220898626)
-passed at `58f33fc`, including cold framework/dependency setup and the complete native verifier.
-The 2026-09-14 run at the post-CD-binding pin first exposed the shared setup action's duplicated
-Lightrec pin (psxport issue 0051, fixed at `80b041af`); run
-[34898626490](https://github.com/SomeoneIsWorking/c12/actions/runs/34898626490) then passed cold at
-`dab5020`. This job does not claim a player package or gameplay support.
-
-Verification gap under the current C++ policy: the shared style verifier still applies a TU-only
-line filter and has no syntax-aware global-API, extern-declaration, or block-local constant check.
-C-12 now enables diagnostic/analyzer/bugprone/performance/brace checks and first-party header
-selection, and all six first-party translation units pass clang-tidy under that configuration; the
-shared mechanical-enforcement upgrade remains pending.
-
-| Platform | Applicability | Current CI evidence and exact gap |
-| --- | --- | --- |
-| Linux x86-64 | applicable product target | Hosted native startup verification passed at `58f33fc`; player packaging and gameplay qualification remain open. |
-| Windows x86-64 | applicable product target | Missing: no native/dynarec executable, Windows build, runtime test, or package boundary exists. |
-| macOS arm64 | applicable product target | Missing: no native/dynarec executable, Apple-Silicon build, runtime test, or application package exists. |
-| Android arm64 | applicable product target | Missing: no title Android package, shared `android-port` integration, native runtime, APK build, or install test exists. |
-| WebAssembly browser | applicable product target | Missing: browser translation/backend qualification, native title rendering, browser checks, and a GitHub Pages release. |
-
-Gap: add each native platform job only when it can exercise the corresponding redistributable
-runtime/package boundary with synthetic inputs. A duplicated source-policy matrix is not platform
-support.
-
-### S008 — Widescreen
-
-Missing capability: recover the source projection and horizontal culling owners, render additional
-geometry at wide aspect ratios, and qualify framing without final-image stretching.
-
-### S009 — Native scene construction
-
-Missing capability: recover C-12's scene, geometry, materials, camera, and draw-order owners and
-implement native picture construction. Guest-rendered output is not the native product.
-
-### S010 — 60 fps source interpolation
-
-Missing capability: measure the title's simulation cadence, preserve that cadence, and interpolate
-explicitly matched source geometry to 60 fps with camera, topology, and scene-cut discriminators.
-
-### S011 — Loading and cancellation
-
-Missing capability: recover lifecycle-complete cancellation paths, remove waiting-only presentation,
-and run asynchronous loading without removing authored transitions or fast-forwarding simulation.
-
-### S012 — Player setup
-
-Missing capability: native file selection, direct/ZIP complete-install validation, bounded archive
-handling through Lucent, and transactional publication of the player's selected game files.
-
-### S013 — Persistent user data
-
-Missing capability: OS application-data ownership for saves/settings and verified reset/reselection
-behavior. Checkout-relative or temporary files are not player persistence.
-
-### S014 — Physical controls
-
-Missing capability: qualify meaningful keyboard/controller actions in interactive C-12 gameplay,
-including pause and cancellation. Shared input code presence is not title control evidence.
-
-### S015 — SVG touch controls
-
-Missing capability: authored SVG control art and a reachable, scale-aware action layout using the
-same title input policy, with multitouch, cancellation, insets, and connected-controller behavior.
-
-### S016 — Linux AppImage
-
-Missing capability: asset-free AppImage setup, install/launch, native-picture gameplay, and host
-performance qualification. The current policy CI is not an AppImage release.
-
-### S017 — Windows package
-
-Missing capability: Windows native build/runtime/package checks and no-terminal player setup,
-followed by local real-title gameplay and performance qualification.
-
-### S018 — macOS application
-
-Missing capability: `.app` packaging, player setup, executable-memory/ABI/invalidation qualification,
-and real-title native-picture gameplay on each claimed macOS architecture, including Apple Silicon.
-
-### S019 — Android APK
-
-Missing capability: shared `android-port` build inputs, Lucent platform runtime integration,
-arm64-v8a dynarec execution, authored SVG touch controls, asset-free setup, and a named-device
-rendering/audio/frame-time/thermal qualification matrix.
-
-### S020 — WebAssembly release
-
-Missing capability: browser-capable runtime translation with the same dispatch semantics as desktop,
-native C-12 rendering, player input/file setup, and an asset-free GitHub Pages deployment. A browser
-interpreter or an unavailable backend cannot substitute for the required dynarec path.
-
-### S021 — Independent oracle comparison
-
-Missing capability: an authenticated C-12 oracle run with matching initial state and input, reached
-boundary denominators, first-divergence diagnostics, and representative gameplay/render/audio checks.
+| ID | Capability | State | Evidence or exact gap |
+| --- | --- | --- | --- |
+| S001 | USA disc resolves through `SYSTEM.CNF` to authenticated `SCUS_946.66` | verified | 921,600 bytes, SHA-256 in `title.json`; `tests/test_authenticated_image.cpp` covers bounded reads and refusals |
+| S002 | Pre-migration execution boundary recorded (first VSync, then guest PC `0x800A7F90`) | verified | recorded discriminator retained as a fact, not a static plan |
+| S003 | Authenticated program executes non-native guest code dynarec-first with bounded, reason-coded fallback | partial | `c12_boot_probe` runs the real image: typed VSync exit `0x800A1758` at 302,824 cycles, 29 continuation turns, field stepping raised 597/600 guest vs-counts at `0x800EEB98`, stock CD wait `0x800B4CA8` crossed, zero fallback blocks/instructions, zero faults; stalls in the title CD-read pump (issue 0003) |
+| S004 | Program returns from first VSync and executes beyond `0x800A7F90` through Lightrec | missing | `frame-boundaries=0` in 600 turns; the read completion never reaches the guest |
+| S005 | Representative interactive gameplay with input, timing, interrupts, devices, audio, rendering, frame time | missing | no player field lifecycle or native picture; no interactive scenario |
+| S006 | Offline translator, generated corpus, static dispatcher, and static-only checks deleted with no compatibility mode | verified | `tools/source_policy.py` rejects their paths and source markers; `c12_port` names the missing boundary |
+| S007 | Hosted CI distinguishes repository policy from native product support | partial | Linux job passes (`tools.verify` on Clang); no Windows, macOS, Android, or WASM job exists |
+| S008 | Widescreen renders additional source geometry with correct projection and culling | missing | projection and culling owners not recovered |
+| S009 | Native scene construction produces the C-12 picture from recovered title state | missing | no scene/geometry/material owner exists |
+| S010 | 60 fps source-geometry interpolation preserves authored simulation timing | missing | title simulation cadence unmeasured |
+| S011 | Asynchronous loading; logos/sequences support complete cancellation | missing | no lifecycle or loading owner |
+| S012 | No-terminal picker authenticates the complete user installation, including bounded nested ZIP | missing | launcher only validates a disc path |
+| S013 | Saves and settings persist in OS application data | missing | no persistence owner |
+| S014 | Physical controller and keyboard controls drive the title | missing | no player input path |
+| S015 | Authored SVG touch controls with multitouch, cancellation, safe areas, controller handover | missing | no touch layer |
+| S016 | Asset-free Linux AppImage installs and runs qualified gameplay | missing | no packaging target |
+| S017 | Asset-free Windows package | missing | no Windows build or package |
+| S018 | Asset-free macOS application | missing | no macOS build or package |
+| S019 | Android APK with arm64 dynarec gameplay and SVG touch input | missing | no `android-port` integration |
+| S020 | WASM/GitHub Pages release runs the shipping runtime | missing | no browser backend qualification |
+| S021 | Independent oracle comparison diagnoses execution and gameplay divergence | missing | no C-12 oracle scenario |

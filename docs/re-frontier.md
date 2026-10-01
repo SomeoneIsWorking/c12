@@ -31,7 +31,7 @@ No further static product generation, build, or run is part of this chain.
 - deps: runtime.recorded-boundary
 - evidence: The tracked emitter/bootstrap path and generated dispatcher are deleted; the ignored
   generated corpus and static build tree are absent; the source-policy test rejects their return.
-- where: `CMakeLists.txt`, `tools/source_policy.py`, `tests/test_source_policy.py`
+- where: `CMakeLists.txt`, `tools/source_policy.py`, the `c12_source_policy` CTest
 - gap:
 - notes: CMake and the player launcher name the missing title field lifecycle/native presentation.
   There is no static compatibility product or interpreter-only player selector.

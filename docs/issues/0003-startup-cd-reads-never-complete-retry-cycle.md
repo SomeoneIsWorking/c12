@@ -8,7 +8,8 @@
 
 The authenticated USA probe with host display-field stepping (one shared `gpu_pace_frame` call per
 executor turn) advances the guest's own libetc vs-count (`0x800EEB98`) — 597 at 600 turns — and
-crosses the stock `0x800B4CA8` command wait recorded by issue 0002. Guest startup reaches its own
+crosses the stock `0x800B4CA8` command wait, whose guest work area is `0x800EEED0..D4`.
+Guest startup reaches its own
 memory report (`Code: 677 Kb`) and enters `FUN_800afb70` (`0x800AFB70..0x800AFC73`), a title-owned
 pump that ticks `FUN_800af7ec(1)` per field.
 
