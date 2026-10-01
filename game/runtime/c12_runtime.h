@@ -18,6 +18,7 @@ public:
   const PlatformHlePlan *platformHlePlan() const override;
   const GuestCdStreamCallbackLayout *guestCdStreamCallbackLayout() const override;
   GuestAddressRange guestCodeModuleWindow() const override;
+  const GuestPacketPoolWindows *guestPacketPoolWindows() const override;
   RenderCapabilities renderCapabilities() const override;
   bool guestVramIsPicture(const Game &) const override;
 

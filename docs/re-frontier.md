@@ -46,24 +46,34 @@ No further static product generation, build, or run is part of this chain.
   `0x800EEED0..D4` through the title-owned `PlatformHlePlan`. Three measured title facts joined it:
   the libcd `CdReadyCallback` slot `0x800EEEBC` (written by `FUN_800AC158`, read by
   `FUN_800AF7EC`/`FUN_800AF4A8`) with `GuestInterrupt` delivery and completion code 1; the RAM
-  arena `0x80105E40..0x801FFFF0` its loader allocates relocatable modules in; and nothing else. On
-  the authenticated USA image the probe now runs 2,000 turns with 1,038 typed frame boundaries,
-  92.5 M guest instructions, zero fallback blocks and zero faults, and in 6,000-turn runs reaches
-  the guest's own drawing submissions. The read pump at `0x800AFB70` crosses its retry cycle and
-  stays crossed: `CdRead: retry...` and `CdRead: sector error` are both absent from a 2,000-turn run.
+  arena `0x80105E40..0x801FFFF0` its loader allocates relocatable modules in; the 2D packet pool
+  `0x800E3DE4..0x801B0F9C`; and that the guest's own VRAM is the picture. The pool is ONE window
+  holding both parity ordering tables (`0x801AFF98`, `0x801B0F98`, 0x10000 apart, inside the guest's
+  heap) with packets descending from them, measured by walking each parity table over 3,000 turns —
+  neither an array of two equal halves nor two reallocating pools, so the framework gained the
+  representation that says so. On the authenticated USA image the probe runs 2,000 turns with 1,038
+  typed frame boundaries, 92.5 M guest instructions, zero fallback blocks and zero faults. The read
+  pump at `0x800AFB70` crosses its retry cycle and stays crossed: `CdRead: retry...` and
+  `CdRead: sector error` are both absent from a 2,000-turn run. `c12_port` is now a real product
+  executable: `GuestFieldLoop` runs the guest to each VSync boundary and crosses the framework's ONE
+  presentation fence per field, which is what the `FramePresenter::capture OVERFLOW ... > RQ_MAX`
+  refusal was about — the probe never committed a fence, so every field's prims accumulated.
+  1,420 presented fields, 1,326 VSync boundaries, 0 fallback, 0 faults, with the loopback control
+  channel answering `shot`/`r`/`w32` against the live Core.
 - where: `external/psxport` (`cd_ready_delivery.*`, `cdc_native.cpp`, `cd_override.cpp`,
-  `guest_code_module.*`), `game/runtime/c12_platform_facts.*`, `game/app/boot_probe.cpp`
-- gap: The guest's 2D packet pool is undeclared, so `OtAttr` attribution is blind and the frame
-  presenter reports `capture OVERFLOW ... > RQ_MAX 65536`; recover the ordering-table/pool geometry
-  and declare it. Measured so far: the module's `ResetGraph` prints `jtb=800e3cf0`, and at the end
-  of a 1,300-turn run live GP0 packets (a `0x09FFFFFF` rect, `E3`/`E4`/`E5` text and poly headers)
-  sit at `0x800E3D5C` and above it, so the drawing environment is a downward-allocating pool based
-  at the printed `jtb` with its ordering table at the top. The table's extent, and whether the two
-  parity buffers are contiguous, are not yet measured — that is the next step. Then recover the title field lifecycle and
-  native presentation so `c12_port` is a real executable, and let product time own the field clock
-  instead of the probe's per-turn `gpu_pace_frame`. Audit the gameplay link and selector surfaces to
-  exclude interpreter-only execution; count the shared backend's bounded compilation/fetch fallback
-  by reason and executed instructions/blocks.
+  `guest_code_module.*`, `guest_packet_pool_windows.*`), `game/runtime/c12_platform_facts.*`,
+  `game/field/guest_field_loop.*`, `game/app/player_entry.cpp`
+- gap: The packet pool is declared and the product presents, so the next frontier is the PICTURE's
+  fidelity and what the title does after Start. At field 1400 the presented frame is C-12's title
+  screen ("C-12 FINAL RESISTANCE" / "PRESS START BUTTON") at 40.68% non-black, drawn entirely by the
+  guest; the boot loading screen at field 50 renders in full colour. What is wrong with the title
+  screen is measured and located to a framework seam: every second raster line is lost between guest
+  VRAM and the presented frame (CPU capture 0 of 240 rows dark, presented 149 of 240, alternating),
+  while the upload itself carries all 240 rows (`upload_vram 480 KiB`). That is the next step, in the
+  composite's decode/encode passes, not in the title. Then drive Start through the pad and reach the
+  logo sequence. Audit the gameplay link and selector surfaces to exclude interpreter-only execution;
+  count the shared backend's bounded compilation/fetch fallback by reason and executed
+  instructions/blocks.
 - notes: Do not invoke an offline translator or generated guest corpus.
 
 ### runtime.module-load — Execute the code the title's own loader reads

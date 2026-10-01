@@ -37,14 +37,21 @@ GuestAddressRange C12Runtime::guestCodeModuleWindow() const {
   return c12::kGuestCodeModuleWindow;
 }
 
+const GuestPacketPoolWindows *C12Runtime::guestPacketPoolWindows() const {
+  return &c12::kPacketPoolWindows;
+}
+
 RenderCapabilities C12Runtime::renderCapabilities() const {
   return RenderCapabilities::direct();
 }
 
 bool C12Runtime::guestVramIsPicture(const Game &) const {
-  // This initial runtime is exercised by a non-presenting boot probe. No player
-  // renderer or source-geometry reconstruction has been qualified yet.
-  return false;
+  // MEASURED: this title has no native picture producer. Its own ordering tables feed the guest's
+  // GP0 packets, the framework's rasterizer draws them into guest VRAM, and nothing else writes the
+  // frame — at field 1400 a direct capture of the declared display rect (0,256) 512x240 held real
+  // picture while the presented frame was 0/691,200 non-black, because the present policy was told
+  // the guest's VRAM was not part of the picture and so never composited it.
+  return true;
 }
 
 } // namespace c12

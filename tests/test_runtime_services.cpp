@@ -6,6 +6,7 @@
 #include "game.h"
 #include "guest_cd_stream_callback_layout.h"
 #include "guest_code_module.h"
+#include "guest_packet_pool_windows.h"
 #include "platform_hle.h"
 #include "psx_exe_image.h"
 #include "runtime_service_fixture.h"
@@ -165,6 +166,31 @@ void test_c12_declares_runtime_code_module_window(GameRuntime &runtime) {
           "a CD landing activated guest RAM outside the declared window");
 }
 
+// The measured 2D packet pool: both parity ordering-table heads and the packets that descend from
+// them are inside one window, so the title declares that window rather than a shape it does not have.
+void test_c12_declares_measured_packet_pool() {
+  psx::cpu::PsxExeImage image{};
+  c12::C12Runtime runtime(image);
+  const auto *windows = runtime.guestPacketPoolWindows();
+  require(windows != nullptr, "C-12 published no 2D packet pool");
+  require(windows->valid(), "C-12 declared an empty 2D packet pool");
+  require(windows->representation == GuestPacketPoolWindows::Representation::SingleWindow,
+          "C-12 declared a pool shape it does not use instead of its measured one window");
+  require(windows->base == c12::kPacketPoolLow, "C-12 declared a pool floor other than the measured one");
+  require(windows->end == c12::kPacketPoolHigh, "C-12 declared a pool top other than the measured one");
+  // Both parity OT heads are inside the declared pool, and the drawing environment below it is not:
+  // the window is the render data, not everything the guest owns.
+  for (const std::uint32_t head : {0x801AFF98u, 0x801B0F98u}) {
+    require(head >= windows->base && head < windows->end,
+            "a measured parity ordering table is outside the declared packet pool");
+  }
+  // The window is the measured EXTENT of the addresses packets were submitted from, and that band
+  // also holds the guest's own data/BSS globals, so attribution inside it is coarse — a known gap
+  // (docs/project-state.md), not a fact this declaration claims to have solved.
+  require(windows->end > c12::kCdReadyCallbackSlotAddress,
+          "the declared packet pool stops below the band it was measured over");
+}
+
 } // namespace c12::test
 
 int main() {
@@ -180,9 +206,10 @@ int main() {
     c12::test::UndeclaredCdWorkAreaRuntime undeclared;
     c12::test::test_c12_cd_work_area(undeclared, false);
     c12::test::test_c12_declares_runtime_code_module_window(runtime);
+    c12::test::test_c12_declares_measured_packet_pool();
     lucent::info("c12.runtime",
-                 "PASS: 8/8 C-12 VSync/query/admission, stock CD work-area, CD ready-callback and "
-                 "runtime-code-module checks");
+                 "PASS: 9/9 C-12 VSync/query/admission, stock CD work-area, CD ready-callback, "
+                 "runtime-code-module and 2D packet-pool checks");
     return 0;
   } catch (const std::exception &error) {
     lucent::error("c12.runtime", "FAIL: {}", error.what());

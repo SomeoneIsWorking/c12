@@ -1,6 +1,7 @@
 #pragma once
 
 #include "guest_cd_stream_callback_layout.h"
+#include "guest_packet_pool_windows.h"
 #include "guest_program_image.h"
 #include "platform_hle.h"
 
@@ -54,8 +55,6 @@ inline constexpr PlatformHlePlan kPlatformHlePlan = [] {
 inline constexpr GuestAddressRange kModuleArena = {0x00105E40u, 0x001FFFF0u};
 inline constexpr GuestAddressRange kGuestCodeModuleWindow = kModuleArena;
 
-const PlatformHlePlan &platformHlePlan();
-
 inline constexpr GuestCdStreamCallbackLayout kCdStreamCallbackLayout = [] {
   GuestCdStreamCallbackLayout layout{};
   layout.readyCallbackPointer = kCdReadyCallbackSlotAddress;
@@ -65,5 +64,31 @@ inline constexpr GuestCdStreamCallbackLayout kCdStreamCallbackLayout = [] {
   layout.readyStatus = kCdReadyStatus;
   return layout;
 }();
+
+// The 2D packet pool, measured over 3,000 fields (2,033 presented frames) of the authenticated
+// startup: walking each parity ordering table from its head reaches the same lowest node every
+// time, and no node ever appears above the second head. The parity heads are `0x801AFF98` and
+// `0x801B0F98` — 0x10000 apart, inside the guest's own heap (`InitHeap` base `0x80105E40`, end
+// `0x8017FFF4`) — while the packets descend from them down to `0x800E3DE4`, just above the drawing
+// environment the guest passes to `ResetGraph` (`jtb=0x800E3CF0`). So the pool is ONE window with
+// both ordering tables at its top, not two equal halves and not two reallocating pools, and it is
+// declared as the measured extent it is.
+//
+// COARSENESS, stated rather than hidden: that lowest address is the same fixed node on every walk, so
+// it is a static packet in the executable's data segment, and the band between it and the heads also
+// holds the guest's own globals (`0x800EEEBC`, the heap cursor). The window is therefore the addresses
+// packets were actually submitted from, which is what attribution needs, but a store inside it is not
+// yet known to be render data. Recorded as an open item in docs/project-state.md.
+inline constexpr std::uint32_t kPacketPoolLow = 0x800E3DE4u;
+inline constexpr std::uint32_t kPacketPoolHigh = 0x801B0F9Cu;
+inline constexpr GuestPacketPoolWindows kPacketPoolWindows = [] {
+  GuestPacketPoolWindows windows{};
+  windows.representation = GuestPacketPoolWindows::Representation::SingleWindow;
+  windows.base = kPacketPoolLow;
+  windows.end = kPacketPoolHigh;
+  return windows;
+}();
+
+const PlatformHlePlan &platformHlePlan();
 
 } // namespace c12
