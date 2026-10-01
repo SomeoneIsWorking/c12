@@ -2,9 +2,12 @@
 
 from __future__ import annotations
 
+import logging
 import re
+import sys
 from pathlib import Path
 
+ROOT = Path(__file__).resolve().parents[1]
 RETIRED_PATHS = ("generated", "game/app/main.cpp")
 STATIC_PRODUCT_MARKERS = (
     "tools/recomp/emit.py",
@@ -65,3 +68,18 @@ def check_source_policy(root: Path) -> int:
             "forbidden static execution surface:\n" + "\n".join(violations)
         )
     return len(paths)
+
+
+def main() -> int:
+    logging.basicConfig(level=logging.INFO, format="[c12.policy] %(message)s")
+    try:
+        scanned = check_source_policy(ROOT)
+    except (OSError, SourcePolicyError) as error:
+        logging.error("REFUSED: %s", error)
+        return 1
+    logging.info("source boundary clean across %d files", scanned)
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())

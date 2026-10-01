@@ -51,7 +51,7 @@ add_custom_target(
 if(BUILD_TESTING)
   add_test(
     NAME c12_source_policy
-    COMMAND "${Python3_EXECUTABLE}" -B -m unittest discover -s tests -p "test_*.py"
+    COMMAND "${Python3_EXECUTABLE}" -B -m tools.source_policy
   )
   set_tests_properties(c12_source_policy PROPERTIES WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}")
   if(C12_BUILD_RUNTIME)
