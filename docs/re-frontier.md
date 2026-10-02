@@ -107,3 +107,9 @@ No further static product generation, build, or run is part of this chain.
 - notes: Boot, first VSync, logos, menus, attract loops, and FMV are checkpoints only. An independent
   emulator or the interpreter in a separately built test target, including diagnostics, may diagnose a
   divergence but never enters gameplay.
+- notes 2026-10-02: the menu is fully driven (Start→menu, UP-X→card screen, DOWN-X→options screen;
+  evidence in `docs/project-state.md`), but NEW GAME stalls at master 6→2 with `0x800F1b44=5` and the
+  GT module still resident — the wait is inside resident module code (`RELOCS/GT.LVB` at `0x8011F9BC`),
+  past EXE-static reach. The EXE side is fully owned (`FUN_8003736c`→`3777c`→`3798c`→`38094`→`37bfc`
+  →`37ef8`, streamer queue `0x800F4020` + `FUN_800577AC`, gp=`0x800EFC10`). Next: provision the module
+  bytes from the disc, decompile at the measured base, find the completion its loop polls.

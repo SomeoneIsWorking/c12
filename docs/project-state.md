@@ -4,8 +4,9 @@ Baseline: the unmodified USA PlayStation release of *C-12: Final Resistance* on 
 emulator. The intended product authenticates the user's image, runs native title-owned overrides,
 and translates all remaining guest code at runtime through psxport's pinned Lightrec revision.
 
-Current focus: the presented picture's fidelity — C-12's title screen is on screen, drawn by the
-guest, with the palette dark — and then driving Start into the logo sequence. Ordered RE evidence
+Current focus: past the title screen (on screen, drawn by the guest; palette dark vs console,
+uncompared) through the Start-driven menu (all three items respond) into gameplay — NEW GAME stalls
+on black at master 6→2 (`0x800F1B44=5`, resident-module wait; see open items). Ordered RE evidence
 lives in `docs/re-frontier.md`.
 
 | ID | Capability | State | Evidence or exact gap |
@@ -14,7 +15,7 @@ lives in `docs/re-frontier.md`.
 | S002 | Pre-migration execution boundary recorded (first VSync, then guest PC `0x800A7F90`) | verified | recorded discriminator retained as a fact, not a static plan |
 | S003 | Authenticated program executes non-native guest code dynarec-first with bounded, reason-coded fallback | verified | `c12_boot_probe` runs the real image: 2,000 turns, 1,038 typed `FrameBoundary` exits, 92.5 M guest instructions, zero fallback blocks/instructions, zero faults; startup CD reads complete through the guest's registered ready callback and the title's own module (`RELOCS/GT.LVB`) executes from RAM |
 | S004 | Program returns from first VSync and executes beyond `0x800A7F90` through Lightrec | verified | Same run: execution continues past the recorded static boundary, into the disc-loaded module, into the title's per-field loop (its VSync at `0x80121204`) and its drawing submissions |
-| S005 | Representative interactive gameplay with input, timing, interrupts, devices, audio, rendering, frame time | partial | `c12_port` is a real product executable: 1,420 presented fields, 1,326 guest VSync boundaries, 0 fallback, 0 faults, and the title screen on screen ("C-12 FINAL RESISTANCE" / "PRESS START BUTTON", 40.68% non-black at field 1400). Packet-pool attribution is no longer blind: the title declares the measured window `0x800E3DE4..0x801B0F9C` holding both parity ordering tables, and the `FramePresenter::capture OVERFLOW` is gone with the per-field `commit` that was its cause. The composite/present seam's alternate-raster-line loss is fixed at its cause in psxport (see the first open item). Still missing: the palette is dark, and Start has not been driven |
+| S005 | Representative interactive gameplay with input, timing, interrupts, devices, audio, rendering, frame time | partial | `c12_port` presents the title with text and menu (`C-12 FINAL RESISTANCE` / `PRESS START BUTTON` / LOAD GAME / NEW GAME / OPTIONS; menu opens on Start — Start verified to reach the guest's own pad words `0x80102EFC`/`F00`, and a 65 s no-press control proves the menu is Start-driven). LOAD GAME reaches its card screen and OPTIONS reaches its setup screen. NEW GAME stalls on black (master 6→2, `0x800F1B44=5`): 24–43k presented fields, 0 new translations, 0 fallback, 0 faults, display on — see the NEW GAME stall open item. Packet-pool attribution is no longer blind: the title declares the measured window `0x800E3DE4..0x801B0F9C` holding both parity ordering tables, and the `FramePresenter::capture OVERFLOW` is gone with the per-field `commit` that was its cause. The composite/present seam's alternate-raster-line loss is fixed at its cause in psxport (see the first open item). Still missing: the palette is dark vs console (uncompared), and gameplay past the menu |
 | S006 | Offline translator, generated corpus, static dispatcher, and static-only checks deleted with no compatibility mode | verified | `tools/source_policy.py` rejects their paths and source markers; `c12_port` builds the player product and `c12_boot_probe` remains a bounded maintainer tool, with no compatibility or selector path |
 | S007 | Hosted CI distinguishes repository policy from native product support | partial | Linux job passes (`tools.verify` on Clang); no Windows, macOS, Android, or WASM job exists |
 | S008 | Widescreen renders additional source geometry with correct projection and culling | missing | projection and culling owners not recovered |
@@ -69,23 +70,21 @@ lives in `docs/re-frontier.md`.
   whole-canvas arm. Spyro 1/2/3 are `Gte`, so they now take the identical branch `HEAD` does. The
   decision has a unit test (`test_vram_persistence`, 11/11) because it was previously found by
   bisecting a live title.
-- **Start has NOT been shown to reach the guest, and the title screen has not been observed.** Two
-  readings were wrong and are withdrawn: a RAM diff around a forced press looked like ~2,900 bytes of
-  tap-only change, but the churning words are the game's own scene table — `FUN_80043d54` is an
-  initialiser that fills a 16-byte-per-entry table at `0x800CCF1C` downwards with `-0x3E8` counters,
-  and it updates every field whether or not anything is pressed. The presented frame also looked static
-  by aggregate and animated on close reading (mean absolute difference against the pre-tap frame
-  12.5, 17.0, 18.7, 21.5, 22.1, 21.2 over six seconds at a constant 76,585 non-black), so both readings
-  were artefacts of the wrong instrument. What IS established: the guest's per-field entry is a
-  four-address cycle in `FUN_800a0854` (continuations `0x800A0E14`/`0x800A0E4C`/`0x800A0EF8`/
-  `0x800A0F24`, 15 transitions in ~700 fields), which walks a 16-byte-per-entry draw table at
-  `0x800E3E88` — inside the declared packet window — and issues draws through `FUN_800b0174` /
-  `FUN_800b00b4` / `FUN_800b03fc`. The screen it presents is an animated full-screen plasma with no
-  text, no logo and no prompt, so it is a SCENE, not a title screen. CD streams throughout (740
-  data-ready callbacks into the title's own `0x800AF4A8` pump by t≈27 s), so the port is not stalled.
-  The next step is to find the state that selects this scene and the routine that leaves it — the scene
-  table's owner and whatever advances it, whether input or the CD stream — and to establish whether the
-  guest's pad is polled at all in this state, before any more input is injected. An earlier run appeared
+- **SUPERSEDED 2026-10-02 by the item below ("Start reaches the guest...").** The RAM-diff
+  reading was withdrawn already; the "no text / plasma scene" reading is withdrawn now too: captures
+  from 25 s after boot show the full title (`C-12 / FINAL RESISTANCE / PRESS START BUTTON`) and, after
+  Start, the menu (LOAD GAME / NEW GAME / OPTIONS). The earlier textless frame was an early-boot moment,
+  not the settled screen. The static ownership behind the old "next step" is now recovered: the scene
+  selector is master `0x800F1B40` (6 = GT-module title, 2/3 = scene loop) with scene index `0x800F1520`
+  in `FUN_8003736c`; the pad IS polled every field (`FUN_80038094` → `FUN_80043dec` → `FUN_800a122c` →
+  `FUN_800a129c`/`FUN_800a1580` into `0x80102EEC`+port*`0x30`, scanned against the button table at
+  `0x800CCF1C` initialised by `FUN_80043d54`); the leave-scene path from the menu is the resident
+  module's own `0x800F1B44=5` request. What remains is the NEW GAME stall item, not input delivery.
+  (Remainder of the old item, kept for provenance; its conclusions are withdrawn above. Note one
+  correction for future readers: the `0x800A0E14`/`0x800A0E4C`/`0x800A0EF8`/`0x800A0F24` continuations
+  are NOT inside `FUN_800a0854` — Ghidra places them in `FUN_800a0e04` / `FUN_800a0e3c` / `FUN_800a0ebc`,
+  and `FUN_800a0854` itself is a straight-line 172-instruction draw-table walker for entry
+  `param_1` at `0x800E3E88`+`param_1`*0x10. An earlier run appeared
   to go solid black on a second press; it did not reproduce and ran while a stray `c12_port` and other
   agents' instances contended for the GPU, so it stays unconfirmed.
 - **The title screen's palette is dark.** The boot loading screen at field 50 renders in full colour
@@ -97,9 +96,38 @@ lives in `docs/re-frontier.md`.
   `0x800E3DE4..0x801B0F9C` is where packets were measured being submitted from, and the band also
   holds the guest's own globals (`0x800EEEBC`, the heap cursor), so a store inside it is not yet known
   to be render data. Splitting it further needs the guest's own allocation discipline recovered.
-- **Start has not been driven.** The pad reaches the guest through the real SIO0 chain
-  (`Pad::serviceFrame` per field) and the loopback control channel is live, but no run has yet pressed
-  Start to reach the logo sequence.
+- **Start reaches the guest and drives the menu; verified 2026-10-02.** Seven headless
+  runs (`scratch/hold_hold1`, `nopress_np1`, `menu_m1`, `newgame_n2`, `load_l1`, `loadaud_a1`,
+  `newaud_n1`, scripts beside them). Holding Start flips the guest's own pad words
+  `0x80102EFC`/`0x80102F00` from `0` to `0x10001000` and back to `0` on release (the low-level
+  pump `FUN_800a122c` ← `FUN_800a129c`/`FUN_800a1580` runs; the per-field scan is `FUN_80043dec`,
+  called from `FUN_80038094`/`FUN_8005d438`). `tap start` opens the menu (LOAD GAME / NEW GAME /
+  OPTIONS, default highlight NEW GAME); a 65 s no-press control stays on PRESS START, so the menu
+  is Start-driven, not timed. `UP,X` reaches LOAD GAME ("Accessing MEMORY CARD", master 6,
+  `0x800F1B4C=1`); `DOWN,X` reaches an options screen (CONTROLLER/SOUND/SCREEN, master 6);
+  `X` alone takes the NEW GAME path below. Captures opened and inspected in all runs.
+- **NEW GAME stalls on a black screen after the menu; owners narrowed, unfixed.** `X` on NEW GAME
+  moves master `0x800F1B40` 6→2 with request `0x800F1B44=5` (written by the resident GT module —
+  no `=5` store exists in the EXE) and freezes there across 24–43k presented fields: zero new
+  translated blocks, zero fallback, zero faults, display ON (`disp` valid), CB slots intact
+  (`0x800EEEBC=0x80057E8C`), status idle (`0x800EF194=2`), streamer pending `0x800F0758=5` /
+  state `0x800F0770=0`, queue `0x800F4020=[0D,2,5,0C,6]` write=5 read=0 mode=0, GT still resident
+  (`0x800EFEAC=0x8011F9BC`, whose sole static writer `FUN_8003777c` never stored — so scene-2 init
+  never reached its `RELOCS/TI.LVB` load: no new `module_load`/DMA), teardown list head NULL
+  (`*(0x800D1F8C)=0`), per-field submission one 2x1 COPY + env only. Ruled out with evidence:
+  the `FUN_800582CC` spin (its gates need pending `>0x14`; pending is 5), `FUN_80038094`'s outer
+  loop (`0x800F151C&0x40==0`, read live), display-off, audio-disable (audio-on stalls identically),
+  missing card file (HLE creates blank; zero card-subsystem log lines in every run — the card is
+  never even opened: `state save` refuses for "memory card is not open"). Static chain (all bodies
+  verified through `decomp_pipeline.py`): `FUN_8003736c` master machine → `FUN_8003777c` scene init
+  → `FUN_8003798c` update → `FUN_80038094` VSync wait → `FUN_80037ef8` teardown; streamer queue at
+  `0x800F4020`, dispatcher `FUN_800577AC`, guest gp measured as `0x800EFC10` (b48=`0x800F0758`,
+  b60=`0x800F0770`, b68=`0x800F0778`). Next step: the wait lives in resident module code
+  (`RELOCS/GT.LVB` at `0x8011F9BC`, entry `0x8011FA64`) past EXE-static reach — provision its bytes
+  from the disc, decompile at the measured base, and find what completion its loop polls.
+  (Runs: `menu_m1` first X→2 transition + byte-identical black frames; `gate_g1`/`newaud_n1` for the long-horizon numbers; `queue_q1`, `cb_b1`,
+  `mod_h1`, `list_t1`, `cls_c1`, `attr_o1` for queue/CB-slot/handle/list/classifier reads;
+  `loadaud_a1` for audio-on LOAD; Ghidra C under `scratch/decomp/c12/c/`.)
 - **Black screen after the credits screen is a guest-side spin, unfixed.** Deterministic
   `PC=0x800582E4` (`FUN_800582CC`, a leaf loop) sampling identically over 10 pause/`step 1000` cycles;
   it spins while the pending counter `0x800F0758` is non-zero and reads `5`, frozen across 14 s.
