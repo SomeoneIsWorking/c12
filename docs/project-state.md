@@ -100,3 +100,15 @@ lives in `docs/re-frontier.md`.
 - **Start has not been driven.** The pad reaches the guest through the real SIO0 chain
   (`Pad::serviceFrame` per field) and the loopback control channel is live, but no run has yet pressed
   Start to reach the logo sequence.
+- **Black screen after the credits screen is a guest-side spin, unfixed.** Deterministic
+  `PC=0x800582E4` (`FUN_800582CC`, a leaf loop) sampling identically over 10 pause/`step 1000` cycles;
+  it spins while the pending counter `0x800F0758` is non-zero and reads `5`, frozen across 14 s.
+  `PSXPORT_WWATCH` shows that word written only by `FUN_800b4760`'s 7-byte CD response copy at
+  `0x800B47E8` (an indirect store Ghidra's `--refs` cannot see), last written once at field 1641 with
+  value 5. The streamer state word `0x800F0770`, which the loop's work function `FUN_800573E4` branches
+  on, is written only twice in the whole run and both times with 0, so the streamer is never armed and
+  the decrementer `FUN_800577AC` never runs a completing case. Ruled out: the CD layer (reads complete
+  at consecutive LBAs), the pad (93,268 complete correctly-ACKed polls), and `0x0A`/`0x0C`, which are
+  the guest's `CdInit` (`FUN_800b5300`) and whose success conditions our HLE does satisfy. Next step:
+  what is supposed to arm `0x800F0770` — the arming path's gate, the shape of the CD response the
+  guest reads back, or the fire count of its `CdReadyCallback` at `0x800EEEBC`.
