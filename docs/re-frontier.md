@@ -63,17 +63,19 @@ No further static product generation, build, or run is part of this chain.
 - where: `external/psxport` (`cd_ready_delivery.*`, `cdc_native.cpp`, `cd_override.cpp`,
   `guest_code_module.*`, `guest_packet_pool_windows.*`), `game/runtime/c12_platform_facts.*`,
   `game/field/guest_field_loop.*`, `game/app/player_entry.cpp`
-- gap: The packet pool is declared and the product presents, so the next frontier is the PICTURE's
-  fidelity and what the title does after Start. At field 1400 the presented frame is C-12's title
-  screen ("C-12 FINAL RESISTANCE" / "PRESS START BUTTON") at 40.68% non-black, drawn entirely by the
-  guest; the boot loading screen at field 50 renders in full colour. What is wrong with the title
-  screen is measured and located to a framework seam: every second raster line is lost between guest
-  VRAM and the presented frame (CPU capture 0 of 240 rows dark, presented 149 of 240, alternating),
-  while the upload itself carries all 240 rows (`upload_vram 480 KiB`). That is the next step, in the
-  composite's decode/encode passes, not in the title. Then drive Start through the pad and reach the
-  logo sequence. Audit the gameplay link and selector surfaces to exclude interpreter-only execution;
-  count the shared backend's bounded compilation/fetch fallback by reason and executed
-  instructions/blocks.
+- CLOSED as a capture artefact, not a product defect: the "alternate-raster-line loss" was measured
+  only through `present_shot`, which loses alternate rows at some sink sizes on this host (512x240
+  ratio 0.000, 1280x720 ratio 0.500, 512x480 ratio 1.004 on the default Vulkan driver; 512x240 on
+  llvmpipe ratio 1.047). Measuring RGB only is what exposes it — the missing rows carry alpha 255,
+  the present pass's clear colour. The picture's own inputs are all measured whole: the composite
+  texture is non-blank in 240/240 rows of BOTH interlaced field windows (the guest alternates
+  `disp.y` 0 and 256, and only the even field had ever been checked), the present pass is 1:1
+  (512x240 target, 320x240 viewport, source rect 320x240, no interlace term in either shader), and
+  presented row N matches composite row N rather than 2N. Per-region and whole-canvas uploads give a
+  byte-identical `s_present_img` (same SHA-256), so the copy extent never mattered and the
+  whole-canvas arm is reverted. Residual, unfixed, tracked as psxport issue
+  `0148-present-image-loses-alternate-rows-at-some-sink-sizes`.
+
 - notes: Do not invoke an offline translator or generated guest corpus.
 
 ### runtime.module-load — Execute the code the title's own loader reads
