@@ -8,7 +8,7 @@ import sys
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
-RETIRED_PATHS = ("generated", "game/app/main.cpp")
+RETIRED_PATHS = ("generated", "game/app")
 STATIC_PRODUCT_MARKERS = (
     "tools/recomp/emit.py",
     "rec_sources.cmake",

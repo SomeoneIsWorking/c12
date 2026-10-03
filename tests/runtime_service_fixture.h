@@ -1,8 +1,8 @@
 #pragma once
 
-#include "c12_platform_facts.h"
 #include "game_runtime.h"
 #include "platform_hle.h"
+#include "title_facts.h"
 
 #include <array>
 
@@ -19,7 +19,7 @@ inline constexpr std::array<std::uint8_t, 4> kPosition{0x00u, 0x02u, 0x16u, 0x01
 // handler's negative contract without mutating the immutable production plan.
 class UndeclaredCdWorkAreaRuntime final : public GameRuntime {
 public:
-  UndeclaredCdWorkAreaRuntime() : plan_(c12::platformHlePlan()) {
+  UndeclaredCdWorkAreaRuntime() : plan_(kPlatformHlePlan) {
     plan_.stockCdWorkArea = {};
   }
   void *createContext(Core &) override {

@@ -1,4 +1,3 @@
-#include "c12_platform_facts.h"
 #include "c12_runtime.h"
 #include "cd_control.h"
 #include "execution_control.h"
@@ -10,6 +9,7 @@
 #include "platform_hle.h"
 #include "psx_exe_image.h"
 #include "runtime_service_fixture.h"
+#include "title_facts.h"
 
 #include <cstdint>
 #include <lucent/log.h>

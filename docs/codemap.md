@@ -1,21 +1,77 @@
-# Codemap
+# Codemap — C-12: Final Resistance
 
-This map records ownership and placement only. Intent lives in `docs/project-goals.md`, factual state
-in `docs/project-state.md`, and evidence order in `docs/re-frontier.md`.
+Placement and ownership only. Intent lives in `docs/project-goals.md`, factual capability state in
+`docs/project-state.md`, and ordered reverse-engineering evidence in `docs/re-frontier.md`.
 
-| Responsibility | Current owner / location | New responsibility goes |
-| --- | --- | --- |
-| Player launch and authenticated image provisioning | `run.sh`, `bootstrap.py`, `tools/config.py`, `tools/launcher.py`, `pyproject.toml`, `uv.lock` | `run.sh` remains a slim shim; the Python launcher resolves and validates the user image and names it to the product through `PSXPORT_C12_EXECUTABLE` |
-| Exact USA executable identity | `title.json`, `tools/title_identity.py`, `game/image/authenticated_image.*`, `game/image/title_identity.h.in` | C-12 owns the accepted boot name, complete executable SHA-256, and revision size; CMake materializes non-executable identity constants from that authority, while psxport owns CHD extraction and bounded executable mapping |
-| Framework version and PSX execution engine | `tools/psxport_fetch.py`, `external/psxport` | psxport owns the maintained per-`Core` Lightrec integration, CPU synchronization, bounded exits, executable-memory invalidation, and runtime diagnostics. There is NO per-port framework pin: the port ships the framework's own `psxport_fetch.py`, which points `external/psxport` at the live sibling checkout and clones psxport `main` when there is none, so a framework edit is visible in every consumer at once. Lightrec alone stays pinned, in the framework |
-| Direct runtime identity and title policy | `game/runtime/c12_runtime.*`, `game/runtime/c12_platform_facts.*` | C-12 supplies immutable executable and measured VSync/query-counter/CD-entry/work-area/ready-callback-slot/module-arena/packet-pool facts to `GameRuntime`, and states that the guest's own VRAM is the picture; psxport owns the service behavior (including the stand-in CD-ROM interrupt handler, runtime code-module residency, and the packet-pool window arithmetic), while the title owns its field lifecycle |
-| Bounded startup observation | `game/app/boot_probe.cpp`, `game/runtime/c12_platform_facts.*` | Authenticate the title bytes, map them through psxport, install the measured typed VSync and CD facts, step the host display-field clock through the shared pacer, and observe `executeUntilExit` continuations without inventing a native frame driver |
-| Interpreter-only diagnostics and bounded fallback | Separate psxport oracle targets; psxport Lightrec fallback owner | Interpreter-only selection remains outside gameplay; backend compilation/fetch refusal policy and per-reason accounting belong to psxport |
-| Native override and original-call policy | Future cohesive title-owned modules under `game/`; psxport runtime API | Overrides are keyed by runtime image identity plus guest address; a native owner calls original behavior only through psxport's scoped Lightrec original-call operation |
-| First dynamic discriminator | Title runner plus psxport executor | Report first VSync exit/resume and subsequent execution beyond `0x800A7F90`, with translated execution and explicit fallback denominators |
-| Representative gameplay evidence | Future title-owned bounded scenario and diagnostics | Prove meaningful player control, state/memory, interrupt/timing, devices, audio, rendering, and frame time |
-| Static-path exclusion | `tools/source_policy.py`, the `c12_source_policy` CTest | Reject the deleted offline translator, generated corpus, static dispatcher, and compatibility markers before any dynarec implementation |
-| Display-field lifecycle and the one presentation fence | `game/field/guest_field_loop.*`, `game/app/player_entry.cpp` | The title owns one finite field step: run the guest to its VSync boundary, validate the continuation against the loaded images, and cross `FramePresenter::commit` exactly once per field. New field behavior goes here, never into the probe |
-| Player executable | `game/app/player_entry.cpp`, `CMakeLists.txt` target `c12_port` | One target, zero-argument product: authenticate, bind per-Core devices, attach the loopback control channel, then hand the machine to the field owner |
-| Asset-free verification | `tools/verify.py`, `tools/psxport_fetch.py`, `tests/test_authenticated_image.cpp`, `tests/test_runtime_services.cpp`, `tests/runtime_service_fixture.h`, `CMakeLists.txt`, `.github/workflows/ci.yml` | The title ships the framework's own `psxport_fetch.py` so a bare clone resolves `external/psxport` before the shared setup action exists locally; psxport then owns Linux dependency provisioning and build/test/link policy; admission tests exercise the probe's byte authentication |
-| Project facts and evidence order | `docs/project-state.md`, `docs/re-frontier.md`, `docs/codemap.md` | State changes go to project state, ordered RE evidence to the frontier, and ownership changes to this map |
+The framework side of every seam named here lives in `external/psxport` and is mapped in that
+repository's `docs/codemap.md`; this page covers what C-12 owns and where a defect in it belongs.
+
+## Directories
+
+| Directory | Namespace | Class / owner | Responsibility |
+| --- | --- | --- | --- |
+| `game/entry/` | `c12::app`, `c12::probe` | `runPlayer`, `observe` (plus each translation unit's `main`) | The two executable entry points. Each parses its arguments, composes a `Machine`, and hands the run to the owner of the next step. No boot policy or field logic lives here. |
+| `game/boot/` | `c12` | `Machine` | The whole machine for one run: the installed title runtime policy, the authenticated image, and the `Game` carrying 2 MiB of guest RAM. Construction installs the policy and binds the per-Core devices; `mapExecutable` maps the guest executable and reports the framework's refusal. |
+| `game/frame/` | `c12` | `GuestFieldLoop` | The display-field owner. `run` turns fields until a frame limit or an unresumable turn; `stepField` latches input, executes one guest turn, resumes the VSync continuation, and crosses the presentation fence exactly once per field. |
+| `game/frame/` | `c12` | `resumeVsyncContinuation` | The one rule for a guest VSync continuation in `r31`: aligned and owned by a loaded image, or refused and reported. Shared by the player and the probe. |
+| `game/facts/` | `c12` | none (measured constants) | The guest addresses, HLE plan, module-arena window, CD ready-callback layout and packet-pool window C-12 publishes to psxport. Values only; evidence is in `docs/re-frontier.md`. |
+| `game/runtime/` | `c12` | `C12Runtime` | The title's `GameRuntime` policy: the authenticated program's image facts, the declared HLE/streaming/pool facts, and the statement that this title's guest VRAM is its picture. No behaviour of its own — psxport owns the behavior these facts select. |
+| `game/image/` | `c12` | `authenticateImage`, `readAuthenticatedImage`, `AuthenticatedImage`, `ExecutableIdentity`, `kUsaIdentity` | Exact-revision admission of the USA executable: size, SHA-256, then PS-X EXE parse. Nothing about the executable is trusted before this returns. `kUsaIdentity` is materialized by CMake from `title.json`. |
+| `tools/` | — | `config`, `launcher`, `title_identity`, `source_policy`, `psxport_fetch`, `verify` | Python side: disc-path resolution and the zero-argument launch, the same identity check outside C++, the retired-static-path gate, framework resolution, and the asset-free verification command. |
+| `tests/` | `c12::test` | fixtures and two test binaries | Admission contract for the image and the title's runtime-service declarations. |
+
+## Who owns it
+
+### The frame turn
+
+`c12::app::runPlayer` → `c12::GuestFieldLoop::run` → `GuestFieldLoop::stepField` →
+`psx::cpu::LightrecExecutor::executeUntilExit` → `c12::resumeVsyncContinuation` →
+`psxport FramePresenter::commit` → `SpuAudio::frame` → `DbgServer::service` /
+`DbgServer::honourPause`.
+
+- One turn, one fence: `commit` is the only presentation fence and it runs once per field.
+- Nothing in C-12 blocks the turn: loading, disc streaming and any movie playback are guest work
+  inside `executeUntilExit`, so the field owner and the control channel resume as soon as the guest
+  yields at its VSync boundary. C-12 has no title-side blocking call of its own.
+- A guest that never takes its boundary is bounded by `GuestFieldLoop::kCyclesPerTurn` and reported
+  by `stepField`, not hung.
+
+### Host input → guest pad
+
+`psx::input::HostInput::poll` (the framework's single SDL event drain) → `psxport Pad::serviceFrame`
+called by `GuestFieldLoop::stepField` before the guest runs → the guest's own SIO0 read chain into
+its pad words. C-12 owns no key-to-bit mapping and no pad override; the guest's own scan
+(`FUN_80043dec`) turns the delivered bits into its menu state. Forced input for a driven run and the
+debug pad drive come from the framework's `Pad` through the control channel's `tap` command.
+
+### Guest draw → presentation
+
+Guest GP0 packets → `psxport RenderQueue` capture → `FramePresenter::commit` pacing and present,
+with `c12::C12Runtime::guestVramIsPicture` declaring that this title has no native producer, so
+guest VRAM is the picture. 60 fps interpolation and widescreen are framework-owned enhancements that
+this title does not yet enable (S008/S010 in `docs/project-state.md`).
+
+### CD and streaming
+
+Guest `CdRead`/`CdSync`/command calls → `c12::kPlatformHlePlan` (the admitted measured entries) and
+`c12::kCdStreamCallbackLayout` (guest-interrupt delivery) → the framework's CD owner, whose
+completion reaches the guest's own registered ready callback slot at `c12::kCdReadyCallbackSlotAddress`.
+C-12 owns the addresses and the layout, not the drive.
+
+### Audio
+
+The guest's SPU writes → `psxport SpuAudio`, driven once per field by `GuestFieldLoop::stepField`
+and opened by `runPlayer`. The probe deliberately runs silent.
+
+### Debug options and the control channel
+
+`psxport DbgServer::attach` from `runPlayer` (always open on loopback; `PSXPORT_DEBUG_SERVER` names
+the port) → `DbgServer::service` between fields in `GuestFieldLoop::run` → `honourPause`. The channel
+is framework-owned; C-12 declares no debug option of its own today, so a new one belongs in a
+title-owned module under `game/` reachable from the frame owner, never inside the probe.
+
+### Boot
+
+`run.sh` → `bootstrap.py` → `tools/launcher.py` (resolves and validates the user's disc, names the
+executable through `PSXPORT_C12_EXECUTABLE`) → `c12::app::runPlayer` → `c12::readAuthenticatedImage`
+→ `c12::Machine` → `Machine::mapExecutable` → `c12::GuestFieldLoop::run`.

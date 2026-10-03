@@ -5,10 +5,10 @@ The offline translator, generated source corpus, static dispatcher, prior build 
 gameplay executable have been deleted before replacement work. They are not retained as a bridge or
 oracle.
 
-The player target is unavailable until C-12 owns its field lifecycle and native presentation.
-`./run.sh` validates the configured user disc path and then names that boundary. The separate
-`c12_boot_probe` diagnostic authenticates and maps the original executable, then drives bounded
-Lightrec turns without a display scheduler or a player picture.
+The player target `c12_port` runs the authenticated image: it composes the machine, owns one
+display field at a time, and presents the guest's own picture. `./run.sh` validates the configured
+user disc path and launches it. The separate `c12_boot_probe` maintainer tool boots the same machine
+and drives bounded Lightrec turns without presenting a frame or opening an audio stream.
 
 Configuration is resolved once in `tools/config.py` from `--disc`, `PSXPORT_DISC`, `.env`, or one
 root-level `.chd`, in that order. `bootstrap.py` is a slim entry point and all non-trivial launcher
@@ -46,10 +46,9 @@ build/maintainer/c12_boot_probe scratch/c12-identity/SCUS_946.66 100000 3
 It reports every typed exit plus translated/guest/fallback counters. At a typed VSync boundary it
 observes the guest return address and resumes another bounded Lightrec turn. The probe steps the
 host display-field clock but does not present frames or open an audio stream. On the real image the
-startup CD reads complete through the guest's own registered ready callback, the title loads and
-executes its disc-resident module (`RELOCS/GT.LVB`) out of its RAM arena, and the guest runs its
-per-field loop and submits drawing primitives; a native field lifecycle and the packet-pool geometry
-are still needed before a picture exists.
+startup CD reads complete through the guest's own registered ready callback, the
+title loads and executes its disc-resident module (`RELOCS/GT.LVB`) out of its RAM arena, and the
+guest runs its per-field loop and submits drawing primitives.
 First boot execution alone is not gameplay conformance. Intended enhancements and platform releases
 are listed separately in [project state](docs/project-state.md).
 

@@ -1,6 +1,6 @@
 #include "c12_runtime.h"
 
-#include "c12_platform_facts.h"
+#include "title_facts.h"
 
 namespace c12 {
 
@@ -26,19 +26,19 @@ const GuestProgramImage *C12Runtime::guestProgramImage() const {
 }
 
 const PlatformHlePlan *C12Runtime::platformHlePlan() const {
-  return &c12::platformHlePlan();
+  return &kPlatformHlePlan;
 }
 
 const GuestCdStreamCallbackLayout *C12Runtime::guestCdStreamCallbackLayout() const {
-  return &c12::kCdStreamCallbackLayout;
+  return &kCdStreamCallbackLayout;
 }
 
 GuestAddressRange C12Runtime::guestCodeModuleWindow() const {
-  return c12::kGuestCodeModuleWindow;
+  return kGuestCodeModuleWindow;
 }
 
 const GuestPacketPoolWindows *C12Runtime::guestPacketPoolWindows() const {
-  return &c12::kPacketPoolWindows;
+  return &kPacketPoolWindows;
 }
 
 RenderCapabilities C12Runtime::renderCapabilities() const {
@@ -46,11 +46,9 @@ RenderCapabilities C12Runtime::renderCapabilities() const {
 }
 
 bool C12Runtime::guestVramIsPicture(const Game &) const {
-  // MEASURED: this title has no native picture producer. Its own ordering tables feed the guest's
+  // Measured: this title has no native picture producer. Its own ordering tables feed the guest's
   // GP0 packets, the framework's rasterizer draws them into guest VRAM, and nothing else writes the
-  // frame — at field 1400 a direct capture of the declared display rect (0,256) 512x240 held real
-  // picture while the presented frame was 0/691,200 non-black, because the present policy was told
-  // the guest's VRAM was not part of the picture and so never composited it.
+  // frame, so guest VRAM is the picture.
   return true;
 }
 

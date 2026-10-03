@@ -23,22 +23,25 @@ if(C12_BUILD_RUNTIME)
   configure_file(game/image/title_identity.h.in metadata/title_identity.h @ONLY)
 
   add_library(c12_runtime STATIC
-    game/field/guest_field_loop.cpp
+    game/boot/machine.cpp
+    game/frame/guest_field_loop.cpp
+    game/frame/vsync_continuation.cpp
     game/image/authenticated_image.cpp
-    game/runtime/c12_platform_facts.cpp
     game/runtime/c12_runtime.cpp
   )
   target_link_libraries(c12_runtime PUBLIC psxport)
   target_include_directories(c12_runtime PUBLIC
-    "${CMAKE_CURRENT_SOURCE_DIR}/game/field"
+    "${CMAKE_CURRENT_SOURCE_DIR}/game/boot"
+    "${CMAKE_CURRENT_SOURCE_DIR}/game/facts"
+    "${CMAKE_CURRENT_SOURCE_DIR}/game/frame"
     "${CMAKE_CURRENT_SOURCE_DIR}/game/image"
     "${CMAKE_CURRENT_SOURCE_DIR}/game/runtime"
     "${CMAKE_CURRENT_BINARY_DIR}/metadata")
   # The player executable. One target, one intended product, no selector.
-  add_executable(c12_port game/app/player_entry.cpp)
+  add_executable(c12_port game/entry/player_entry.cpp)
   target_link_libraries(c12_port PRIVATE c12_runtime)
   # The startup probe is a maintainer tool: bounded turns, a report, no presentation ownership.
-  add_executable(c12_boot_probe game/app/boot_probe.cpp)
+  add_executable(c12_boot_probe game/entry/boot_probe.cpp)
   target_link_libraries(c12_boot_probe PRIVATE c12_runtime)
 endif()
 

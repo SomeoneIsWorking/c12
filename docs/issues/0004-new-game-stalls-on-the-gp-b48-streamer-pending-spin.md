@@ -81,7 +81,7 @@ bits    B60 = 0x201 status B3C = 2  open 28C = 1   cb EEBC = 0x80057E8C  cb EEB8
 | `FUN_800573e4()` | the **pump**, called on every `FUN_800582cc` iteration. Issues a queued command **only** when `state==1` (`FUN_800577ac(queue[read])`) or `state==2` (advance read, issue). `state==0` takes no branch | `scratch/x2/g8/c/800573E4.c` |
 | `FUN_800577ac(entry)` | the **dispatcher**: sets `state = 0` on entry (`DAT_800f0778 = 0`), then `FUN_800abd98(id, table, &DAT_800f0740)` | `scratch/x2/g8/c/800577AC.c`, `.../g10/c/800ABD98.c` |
 | `FUN_800abd98` = `CdReadySync` | saves `DAT_800eeeb8`, **zeroes it**, retries `FUN_800b4ca8` 3× | `.../g10/c/800ABD98.c` |
-| `FUN_800b4ca8` = `CdlSync` | the seam — already declared by this title as `kCdCommandAddress = 0x800B4CA8`, i.e. psxport's instant CD owner | `game/runtime/c12_platform_facts.h:18` |
+| `FUN_800b4ca8` = `CdlSync` | the seam — already declared by this title as `kCdCommandAddress = 0x800B4CA8`, i.e. psxport's instant CD owner | `game/facts/title_facts.h` (`kCdCommandAddress`) |
 | `FUN_800ac008` = `CdSync` | same shape, then **`FUN_800b4760(0, result)`** | `.../g11/c/800AC008.c` |
 | `FUN_800b4760(timeout, buf)` | the **poll loop** that delivers completion: calls `(*DAT_800eeeb8)(DAT_800ef194, &DAT_80105790)` when `FUN_800b41fc() & 2`, and `(*DAT_800eeebc)` when `& 4`, until `FUN_800b41fc()` returns 0 | `scratch/x2/gh/c/800B4760.c` |
 | `FUN_80057f7c(stat, buf)` | the **ready callback**: `gp[0xB3C] = *buf`, then `state = 2` and **`pending--`** at `0x800582AC..0x800582B8` | `scratch/x2/g5/c/80057F7C.c`, `scratch/x2/g8/c/800577AC.c` tail |

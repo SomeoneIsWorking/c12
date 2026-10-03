@@ -61,8 +61,8 @@ No further static product generation, build, or run is part of this chain.
   1,420 presented fields, 1,326 VSync boundaries, 0 fallback, 0 faults, with the loopback control
   channel answering `shot`/`r`/`w32` against the live Core.
 - where: `external/psxport` (`cd_ready_delivery.*`, `cdc_native.cpp`, `cd_override.cpp`,
-  `guest_code_module.*`, `guest_packet_pool_windows.*`), `game/runtime/c12_platform_facts.*`,
-  `game/field/guest_field_loop.*`, `game/app/player_entry.cpp`
+  `guest_code_module.*`, `guest_packet_pool_windows.*`), `game/facts/title_facts.h`,
+  `game/frame/guest_field_loop.*`, `game/entry/player_entry.cpp`
 - CLOSED as a capture artefact, not a product defect: the "alternate-raster-line loss" was measured
   only through `present_shot`, which loses alternate rows at some sink sizes on this host (512x240
   ratio 0.000, 1280x720 ratio 0.500, 512x480 ratio 1.004 on the default Vulkan driver; 512x240 on
