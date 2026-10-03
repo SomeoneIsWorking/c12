@@ -31,8 +31,8 @@ jobs:
           enable-cache: false
       - name: Install locked Python environment
         run: uv sync --frozen
-      - name: Resolve the exact framework revision
-        run: uv run --frozen python -m tools.ci_framework
+      - name: Resolve the framework
+        run: uv run --frozen python tools/psxport_fetch.py
       - name: Provision the canonical Linux dependencies
         uses: ./external/psxport/.github/actions/setup-linux
         with:

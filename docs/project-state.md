@@ -125,6 +125,12 @@ lives in `docs/re-frontier.md`.
   b60=`0x800F0770`, b68=`0x800F0778`). Next step: the wait lives in resident module code
   (`RELOCS/GT.LVB` at `0x8011F9BC`, entry `0x8011FA64`) past EXE-static reach — provision its bytes
   from the disc, decompile at the measured base, and find what completion its loop polls.
+  NARROWED 2026-10-03 (issue `0004`): the wait is NOT in the GT module — that overlay is decompiled
+  (`c12_gt`, 14 functions) and contains no store to `0x800F1B40..0x800F1B50`; the arena and EXE contain
+  none either. It is `FUN_800582CC`'s `while (*(int *)(gp + 0xB48) != 0)` spin, whose word is
+  `0x800F0758` (`r28 = 0x800EFC10` measured at the store), written only by `0x800B47E8`, rising to 5
+  at `f862` and never drained; the "pending > 0x14 gate" that ruled this function out is not in its
+  body. Still open: the `0x800F1B44=5` store itself, which no `PSXPORT_WWATCH` range has yet seen.
   (Runs: `menu_m1` first X→2 transition + byte-identical black frames; `gate_g1`/`newaud_n1` for the long-horizon numbers; `queue_q1`, `cb_b1`,
   `mod_h1`, `list_t1`, `cls_c1`, `attr_o1` for queue/CB-slot/handle/list/classifier reads;
   `loadaud_a1` for audio-on LOAD; Ghidra C under `scratch/decomp/c12/c/`.)

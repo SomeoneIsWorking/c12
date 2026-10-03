@@ -32,8 +32,9 @@ dependencies. This uses Clang, Ninja, and the frozen Python interpreter:
 CC=clang CXX=clang++ uv run --frozen python -m tools.verify
 ```
 
-Linux CI fetches `psxport.pin` before invoking that framework's shared setup action and the same
-verifier. Its synthetic admission/style/execution checks require no game files. Dependency checkouts
+Linux CI resolves `external/psxport` through the framework's own `tools/psxport_fetch.py` — there is no
+per-port framework pin; a bare clone or CI gets psxport `main` — before invoking that framework's shared
+setup action and the same verifier. Its synthetic admission/style/execution checks require no game files. Dependency checkouts
 and compiler outputs remain under `build/`; hosted success is distinct from real-title qualification.
 
 The boot observation takes an extracted executable, cycles per turn, and maximum turns:

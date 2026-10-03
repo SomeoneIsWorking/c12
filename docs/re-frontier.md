@@ -108,8 +108,13 @@ No further static product generation, build, or run is part of this chain.
   emulator or the interpreter in a separately built test target, including diagnostics, may diagnose a
   divergence but never enters gameplay.
 - notes 2026-10-02: the menu is fully driven (Start→menu, UP-X→card screen, DOWN-X→options screen;
-  evidence in `docs/project-state.md`), but NEW GAME stalls at master 6→2 with `0x800F1b44=5` and the
-  GT module still resident — the wait is inside resident module code (`RELOCS/GT.LVB` at `0x8011F9BC`),
-  past EXE-static reach. The EXE side is fully owned (`FUN_8003736c`→`3777c`→`3798c`→`38094`→`37bfc`
-  →`37ef8`, streamer queue `0x800F4020` + `FUN_800577AC`, gp=`0x800EFC10`). Next: provision the module
-  bytes from the disc, decompile at the measured base, find the completion its loop polls.
+  evidence in `docs/project-state.md`), but NEW GAME stalls at master 6→2 with `0x800F1b44=5`.
+- notes 2026-10-03 (issue `0004`): the module step is DONE and the attribution it rested on is wrong.
+  `RELOCS/GT.LVB` is decompiled — its post-relocation 16 KiB at `0x8011F9BC..0x801239BC` is manifest
+  image `c12_gt` and analyses to 14 functions — and it contains no store to `0x800F1B40..0x800F1B50`
+  at all, nor does the arena or the EXE. The wait is in the EXE: `FUN_800582cc` is a 16-instruction
+  `while (*(int *)(gp + 0xB48) != 0)` spin, and `PSXPORT_WWATCH_GPR` measures `r28 = 0x800EFC10`, so
+  its word IS `0x800F0758`. That word is written only by `0x800B47E8` (`FUN_800b4760`'s CD-response
+  copy), rises 0→5 by `f862`, and is never decremented. `FUN_800582cc` was wrongly ruled out before
+  (the "pending > 0x14 gate" is not in its body). Next: attribute the `0x800F1B44=5` store, which
+  `PSXPORT_WWATCH` never sees although the value changes — then own the wait natively.
