@@ -119,7 +119,7 @@ lives in `docs/re-frontier.md`.
   loop (`0x800F151C&0x40==0`, read live), display-off, audio-disable (audio-on stalls identically),
   missing card file (HLE creates blank; zero card-subsystem log lines in every run — the card is
   never even opened: `state save` refuses for "memory card is not open"). Static chain (all bodies
-  verified through `decomp_pipeline.py`): `FUN_8003736c` master machine → `FUN_8003777c` scene init
+  verified through `external/psxport/tools/decomp_pipeline.py`): `FUN_8003736c` master machine → `FUN_8003777c` scene init
   → `FUN_8003798c` update → `FUN_80038094` VSync wait → `FUN_80037ef8` teardown; streamer queue at
   `0x800F4020`, dispatcher `FUN_800577AC`, guest gp measured as `0x800EFC10` (b48=`0x800F0758`,
   b60=`0x800F0770`, b68=`0x800F0778`). Next step: the wait lives in resident module code

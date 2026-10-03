@@ -29,12 +29,8 @@ def _read_env_file(path: Path) -> dict[str, str]:
     return values
 
 
-def resolve_config(
-    root: Path, explicit_disc: Path | None, environ: Mapping[str, str]
-) -> LaunchConfig:
-    configured = environ.get(DISC_VARIABLE) or _read_env_file(root / ".env").get(
-        DISC_VARIABLE
-    )
+def resolve_config(root: Path, explicit_disc: Path | None, environ: Mapping[str, str]) -> LaunchConfig:
+    configured = environ.get(DISC_VARIABLE) or _read_env_file(root / ".env").get(DISC_VARIABLE)
     candidate = explicit_disc.expanduser() if explicit_disc else None
     if candidate is None and configured:
         candidate = Path(configured).expanduser()
@@ -42,11 +38,12 @@ def resolve_config(
         drop_ins = sorted(root.glob("*.chd"))
         if len(drop_ins) > 1:
             raise ConfigurationError(
-                "multiple root-level .chd files found; pass --disc or set PSXPORT_DISC"
+                f"multiple root-level .chd files found; pass --disc or set {DISC_VARIABLE}"
             )
         candidate = drop_ins[0] if drop_ins else None
     if candidate is None or not candidate.is_file():
         raise ConfigurationError(
-            "supply the C-12 disc with --disc, PSXPORT_DISC, .env, or one root-level .chd"
+            "supply the C-12 disc with --disc, "
+            f"{DISC_VARIABLE}, .env, or one root-level .chd"
         )
     return LaunchConfig(disc=candidate.resolve())

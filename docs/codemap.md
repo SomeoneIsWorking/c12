@@ -38,18 +38,26 @@ repository's `docs/codemap.md`; this page covers what C-12 owns and where a defe
 
 ### Host input → guest pad
 
-`psx::input::HostInput::poll` (the framework's single SDL event drain) → `psxport Pad::serviceFrame`
-called by `GuestFieldLoop::stepField` before the guest runs → the guest's own SIO0 read chain into
-its pad words. C-12 owns no key-to-bit mapping and no pad override; the guest's own scan
-(`FUN_80043dec`) turns the delivered bits into its menu state. Forced input for a driven run and the
-debug pad drive come from the framework's `Pad` through the control channel's `tap` command.
+`psx::input::HostInput::poll(windowAvailable)` (the ONE owner of the SDL event queue, the key state,
+the open controllers, and the keyboard/game overlay decision; `drainEvents` is its queue drain) →
+`psxport Pad::pollHostInput` (consumes that mask) → `GuestFieldLoop::stepField` calls
+`Pad::serviceFrame` before the guest runs → the guest's own SIO0 read chain into its pad words.
+
+- C-12 owns no key-to-bit mapping and no pad override. The framework's `Pad` is the only
+  active-low mask owner, and the guest's own scan (`FUN_80043dec`) turns the delivered bits into its
+  menu state.
+- Whether a live window exists is answered in one place, `gpu_vk_windowed()` (`gpu_vk.h`), which
+  gates host input, the audio device, and a title-owned headless frame cap.
+- Forced input for a driven run and the debug pad drive come from `Pad` through the control channel's
+  `tap` command.
 
 ### Guest draw → presentation
 
 Guest GP0 packets → `psxport RenderQueue` capture → `FramePresenter::commit` pacing and present,
 with `c12::C12Runtime::guestVramIsPicture` declaring that this title has no native producer, so
-guest VRAM is the picture. 60 fps interpolation and widescreen are framework-owned enhancements that
-this title does not yet enable (S008/S010 in `docs/project-state.md`).
+guest VRAM is the picture. `gpu_vk_windowed()` decides windowed versus headless presentation for the
+whole run. 60 fps interpolation and widescreen are framework-owned enhancements that this title does
+not yet enable (S008/S010 in `docs/project-state.md`).
 
 ### CD and streaming
 
