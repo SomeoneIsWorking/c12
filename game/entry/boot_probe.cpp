@@ -58,7 +58,7 @@ int observe(const char *path, std::uint64_t cycles, std::uint64_t turns) {
     // One host display-field step per iteration, paced against the mode the guest programmed through
     // GP1(0x08). The shared pacer raises the VBlank edge; the guest's own libetc chain advances its
     // vs-count and runs its per-field callbacks.
-    gpu_pace_frame(&core);
+    core.game->framePacer.paceFrame(core);
     ++fieldSteps;
     auto blocksBefore = executor.counters().executedBlocks;
     auto result = executor.executeUntilExit(core.pc, psx::cpu::ExecutionBudget::fromCycles(cycles));

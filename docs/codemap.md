@@ -26,7 +26,7 @@ repository's `docs/codemap.md`; this page covers what C-12 owns and where a defe
 
 `c12::app::runPlayer` → `c12::GuestFieldLoop::run` → `GuestFieldLoop::stepField` →
 `psx::cpu::LightrecExecutor::executeUntilExit` → `c12::resumeVsyncContinuation` →
-`psxport FramePresenter::commit` → `SpuAudio::frame` → `DbgServer::service` /
+`psx::frame::FramePresenter::commit` → `SpuAudio::frame` → `DbgServer::service` /
 `DbgServer::honourPause`.
 
 - One turn, one fence: `commit` is the only presentation fence and it runs once per field.
@@ -53,7 +53,7 @@ the open controllers, and the keyboard/game overlay decision; `drainEvents` is i
 
 ### Guest draw → presentation
 
-Guest GP0 packets → `psxport RenderQueue` capture → `FramePresenter::commit` pacing and present,
+Guest GP0 packets → `psxport RenderQueue` capture → `psx::frame::FramePresenter::commit` pacing and present,
 with `c12::C12Runtime::guestVramIsPicture` declaring that this title has no native producer, so
 guest VRAM is the picture. `gpu_vk_windowed()` decides windowed versus headless presentation for the
 whole run. 60 fps interpolation and widescreen are framework-owned enhancements that this title does
