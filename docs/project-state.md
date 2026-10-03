@@ -128,9 +128,19 @@ lives in `docs/re-frontier.md`.
   NARROWED 2026-10-03 (issue `0004`): the wait is NOT in the GT module — that overlay is decompiled
   (`c12_gt`, 14 functions) and contains no store to `0x800F1B40..0x800F1B50`; the arena and EXE contain
   none either. It is `FUN_800582CC`'s `while (*(int *)(gp + 0xB48) != 0)` spin, whose word is
-  `0x800F0758` (`r28 = 0x800EFC10` measured at the store), written only by `0x800B47E8`, rising to 5
-  at `f862` and never drained; the "pending > 0x14 gate" that ruled this function out is not in its
-  body. Still open: the `0x800F1B44=5` store itself, which no `PSXPORT_WWATCH` range has yet seen.
+  `0x800F0758` (`r28 = 0x800EFC10` measured at the store), rising to 5 at `f862` and never drained;
+  the "pending > 0x14 gate" that ruled this function out is not in its body (only 3 of its 4 call
+  sites have it). RESOLVED 2026-10-03 (second pass): `gp+0xB48` is the CD COMMAND-QUEUE DEPTH, not a
+  response buffer. `FUN_800572c0` enqueues; `FUN_800573e4` is the pump and issues a command only when
+  `state` (`gp+0xB68`) is 1 or 2; `FUN_800577ac` sets `state=0` as its first instruction and calls the
+  seam this title already declares, `kCdCommandAddress = 0x800B4CA8`; the only `pending--` in the whole
+  executable is in the ready callback `FUN_80057f7c`, reached solely from `FUN_800b4760`'s
+  `(*DAT_800eeeb8)` poll gated on `FUN_800b41fc() & 2`. Measured stall state: `pending=5 read=0
+  write=5 state=0 status=2 open=1 cb EEB8=0x80057F7C` — with `pending!=0` and `state==0` the pump
+  issues nothing, so the callback never runs and the spin cannot exit. Still open: whether
+  `FUN_800b41fc()` reports bits 2/4 after the instant `0x800B4CA8`, and the `0x800F1B44=5` store,
+  which no `PSXPORT_WWATCH` range has yet seen. The fix belongs at the CD completion seam, never at
+  the spin or the pump.
   (Runs: `menu_m1` first X→2 transition + byte-identical black frames; `gate_g1`/`newaud_n1` for the long-horizon numbers; `queue_q1`, `cb_b1`,
   `mod_h1`, `list_t1`, `cls_c1`, `attr_o1` for queue/CB-slot/handle/list/classifier reads;
   `loadaud_a1` for audio-on LOAD; Ghidra C under `scratch/decomp/c12/c/`.)

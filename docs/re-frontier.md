@@ -114,7 +114,19 @@ No further static product generation, build, or run is part of this chain.
   image `c12_gt` and analyses to 14 functions — and it contains no store to `0x800F1B40..0x800F1B50`
   at all, nor does the arena or the EXE. The wait is in the EXE: `FUN_800582cc` is a 16-instruction
   `while (*(int *)(gp + 0xB48) != 0)` spin, and `PSXPORT_WWATCH_GPR` measures `r28 = 0x800EFC10`, so
-  its word IS `0x800F0758`. That word is written only by `0x800B47E8` (`FUN_800b4760`'s CD-response
-  copy), rises 0→5 by `f862`, and is never decremented. `FUN_800582cc` was wrongly ruled out before
-  (the "pending > 0x14 gate" is not in its body). Next: attribute the `0x800F1B44=5` store, which
-  `PSXPORT_WWATCH` never sees although the value changes — then own the wait natively.
+  its word IS `0x800F0758`, which rises 0→5 by `f862` and is never decremented. `FUN_800582cc` was
+  wrongly ruled out before (the "pending > 0x14 gate" is not in its body; only 3 of its 4 call sites
+  have it).
+- notes 2026-10-03 (issue `0004`, second pass) — THE QUEUE IS RESOLVED: `gp+0xB48` is the CD
+  COMMAND-QUEUE DEPTH, not a response buffer. `FUN_800572c0` enqueues (`pending++`, ring `0x800F4020`);
+  `FUN_800573e4` is the pump and issues a command ONLY when `state` (`gp+0xB68`) is 1 or 2;
+  `FUN_800577ac` sets `state=0` as its FIRST instruction and calls the CD seam this title already
+  declares, `kCdCommandAddress = 0x800B4CA8`; the ONLY `pending--` in the executable is in the ready
+  callback `FUN_80057f7c`, reached solely from `FUN_800b4760`'s `(*DAT_800eeeb8)` poll gated on
+  `FUN_800b41fc() & 2`. Measured at the stall: `pending=5 read=0 write=5 state=0 status=2 open=1`.
+  With `pending!=0` and `state==0` the pump issues nothing, so the callback never runs and the spin
+  cannot exit — `state==0` is written only by `FUN_800577ac`'s first instruction, so the last
+  dispatcher entry cleared it and the completion that should set it back to 1 or 2 never arrived.
+  Next: does `FUN_800b41fc()` report bits 2/4 after psxport's instant `0x800B4CA8`. That one answer
+  picks the fix, which is at the CD completion seam — never at `FUN_800582cc` or `FUN_800573e4`,
+  whose forcing would mask the missing completion.
