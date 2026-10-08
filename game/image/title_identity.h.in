@@ -1,0 +1,8 @@
+#pragma once
+
+#include "authenticated_image.h"
+
+namespace c12 {
+inline constexpr ExecutableIdentity kUsaIdentity{
+    "@C12_EXECUTABLE@", @C12_SIZE@, "@C12_SHA256@"};
+}
