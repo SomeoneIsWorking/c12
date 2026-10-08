@@ -1,0 +1,85 @@
+"""C-12 source-boundary checks: rejects retired static execution paths."""
+
+from __future__ import annotations
+
+import logging
+import re
+import sys
+from pathlib import Path
+
+ROOT = Path(__file__).resolve().parents[1]
+RETIRED_PATHS = ("generated", "game/app")
+STATIC_PRODUCT_MARKERS = (
+    "tools/recomp/emit.py",
+    "rec_sources.cmake",
+    "main_dispatch",
+    "psxport_install_recomp",
+    "recomp_iface.h",
+    "overlay_table.h",
+)
+SOURCE_SUFFIXES = frozenset({".c", ".cc", ".cpp", ".cxx", ".h", ".hpp"})
+NON_SOURCE_ROOTS = frozenset({".git", ".venv", "build", "external", "scratch"})
+DIRECT_DIAGNOSTICS = re.compile(
+    r"(?:fprintf\s*\(\s*stderr|std::c(?:err|log)\b|OutputDebugString|SDL_Log)"
+)
+DIRECT_ENVIRONMENT = re.compile(r"\b(?:std::)?getenv\s*\(")
+
+
+class SourcePolicyError(RuntimeError):
+    """A retired static execution path remains reachable."""
+
+
+def check_source_policy(root: Path) -> int:
+    root = root.resolve()
+    stale = [relative for relative in RETIRED_PATHS if (root / relative).exists()]
+    if stale:
+        raise SourcePolicyError("retired path still exists: " + ", ".join(stale))
+    candidates = [root / "CMakeLists.txt", root / "bootstrap.py"]
+    candidates.extend((root / "game").rglob("*") if (root / "game").is_dir() else ())
+    candidates.extend(
+        path
+        for path in (root / "tools").rglob("*.py")
+        if path.relative_to(root).as_posix() != "tools/source_policy.py"
+    )
+    paths = sorted(path for path in candidates if path.is_file())
+    if not paths:
+        raise SourcePolicyError(f"scanned {root} but found 0 source files")
+    violations = []
+    for path in paths:
+        text = path.read_text(encoding="utf-8")
+        violations.extend(
+            f"{path.relative_to(root)}: {marker}"
+            for marker in STATIC_PRODUCT_MARKERS
+            if marker in text
+        )
+        if path.suffix in SOURCE_SUFFIXES and DIRECT_DIAGNOSTICS.search(text):
+            violations.append(f"{path.relative_to(root)}: bypasses configurable logger")
+        if path.suffix in SOURCE_SUFFIXES and DIRECT_ENVIRONMENT.search(text):
+            violations.append(f"{path.relative_to(root)}: bypasses configuration owner")
+    violations.extend(
+        f"{path.relative_to(root)}: project automation must be Python"
+        for path in root.rglob("*.sh")
+        if path.is_file()
+        and path.relative_to(root) != Path("run.sh")
+        and path.relative_to(root).parts[0] not in NON_SOURCE_ROOTS
+    )
+    if violations:
+        raise SourcePolicyError(
+            "forbidden static execution surface:\n" + "\n".join(violations)
+        )
+    return len(paths)
+
+
+def main() -> int:
+    logging.basicConfig(level=logging.INFO, format="[c12.policy] %(message)s")
+    try:
+        scanned = check_source_policy(ROOT)
+    except (OSError, SourcePolicyError) as error:
+        logging.error("REFUSED: %s", error)
+        return 1
+    logging.info("source boundary clean across %d files", scanned)
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())
