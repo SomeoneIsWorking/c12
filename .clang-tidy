@@ -1,0 +1,14 @@
+---
+Checks: >-
+  clang-diagnostic-*,
+  clang-analyzer-*,
+  bugprone-*,
+  performance-*,
+  readability-braces-around-statements
+WarningsAsErrors: '*'
+HeaderFilterRegex: '(^|/)(game|tests)/'
+SystemHeaders: false
+CheckOptions:
+  readability-braces-around-statements.ShortStatementLines: '0'
+FormatStyle: file
+...
