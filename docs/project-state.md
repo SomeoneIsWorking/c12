@@ -33,6 +33,7 @@ path. Ordered RE evidence lives in `docs/re-frontier.md`.
 | S019 | Android APK with arm64 dynarec gameplay and SVG touch input | missing | no `android-port` integration |
 | S020 | WASM/GitHub Pages release runs the shipping runtime | missing | no browser backend qualification |
 | S021 | Independent oracle comparison diagnoses execution and gameplay divergence | missing | no C-12 oracle scenario |
+| S022 | Increased draw distance draws more authored geometry with matching fog/fade | missing | far-clip, visibility and LOD owners not recovered |
 
 ## Open items in the current focus
 

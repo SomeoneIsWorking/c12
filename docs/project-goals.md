@@ -44,6 +44,9 @@ Success conditions:
   boundaries; it never stretches a completed frame or selects coverage from adjacent frames.
 - Temporal interpolation produces 60 fps presentation from explicitly matched source geometry,
   preserving authored simulation timing and rejecting discontinuities.
+- Increased draw distance: the title's own far-clip, visibility and level-of-detail owners are found and
+  extended so more authored geometry is drawn, with fog/fade moved to match; never by changing what the
+  simulation sees.
 - Loading work is asynchronous. Loading-only screens are absent, while logos and retained authored
   sequences support complete Start/Cross cancellation transitions.
 - Physical controls, rendering, timing, audio, and progression pass representative interactive
@@ -52,7 +55,7 @@ Success conditions:
 Constraints and non-goals: faster simulation, fabricated cancellation state, and image-space
 interpolation are not implementations of these outcomes.
 
-Contributing state items: S005, S008-S011, S014, S021.
+Contributing state items: S005, S008-S011, S014, S021, S022.
 
 ## G003 — Accessible, asset-free releases
 
