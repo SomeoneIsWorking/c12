@@ -1,6 +1,7 @@
 #include "c12_runtime.h"
 #include "cd_control.h"
 #include "core.h"
+#include "enhancements.h"
 #include "execution_control.h"
 #include "execution_exit.h"
 #include "game.h"
@@ -13,6 +14,8 @@
 #include "render_capabilities.h"
 #include "runtime_service_fixture.h"
 #include "title_facts.h"
+#include "view_frustum.h"
+#include "world_mesh_pass.h"
 
 #include <cstdint>
 #include <lucent/log.h>
@@ -201,6 +204,41 @@ void test_c12_declares_measured_packet_pool() {
           "the declared packet pool stops below the band it was measured over");
 }
 
+void test_c12_widens_frustum_half_width_with_the_canvas() {
+  require(c12::widenedFrustumHalfWidth(0xA0, {512, 512}) == 0xA0, "an equal canvas changed the retail frustum");
+  require(c12::widenedFrustumHalfWidth(0xA0, {512, 684}) == 0xD6, "a 684-column canvas did not scale the frustum");
+  require(c12::widenedFrustumHalfWidth(0xA0, {512, 400}) == 0xA0, "a narrower canvas shrank the frustum");
+}
+
+void test_c12_widens_the_polygon_window_margin() {
+  require(c12::widenedWindowMargin(512, 512) == 0, "an equal canvas added a polygon margin");
+  require(c12::widenedWindowMargin(512, 684) == 86, "a 684-column canvas did not add 86 columns per side");
+  require(c12::widenedWindowMargin(512, 400) == 0, "a narrower canvas added a polygon margin");
+}
+
+void test_c12_polygon_window_reject() {
+  const c12::ScreenVertex rightOfRetail[] = {{520, 10}, {540, 20}, {530, 30}};
+  const c12::ScreenVertex leftOfRetail[] = {{-20, 10}, {-5, 20}, {-8, 30}};
+  require(c12::polygonOutsideWindow(rightOfRetail, 0), "a polygon right of the retail window was kept");
+  require(!c12::polygonOutsideWindow(rightOfRetail, 86), "a polygon inside the widened margin was rejected");
+  require(c12::polygonOutsideWindow(leftOfRetail, 0), "a polygon left of the retail window was kept");
+  require(!c12::polygonOutsideWindow(leftOfRetail, 86), "a polygon inside the left margin was rejected");
+}
+
+void test_c12_widescreen_policy_follows_the_enhancement() {
+  psx::cpu::PsxExeImage image{};
+  c12::C12Runtime runtime(image);
+  c12::Machine machine{c12::AuthenticatedImage{}};
+  const GuestWidescreenProjection *policy = runtime.guestWidescreenProjection();
+  require(policy != nullptr, "C-12 did not publish a widescreen policy");
+  c12::widescreenCvar().set_text(psx::config::Layer::Runtime, "1");
+  require(policy->presentationAspect(machine.core()) == PresentationAspect::Wide16x9,
+          "the widescreen enhancement did not ask for 16:9");
+  c12::widescreenCvar().set_text(psx::config::Layer::Runtime, "0");
+  require(policy->presentationAspect(machine.core()) == PresentationAspect::Standard4x3,
+          "the disabled enhancement did not stay 4:3");
+}
+
 } // namespace c12::test
 
 int main() {
@@ -219,9 +257,13 @@ int main() {
     c12::test::test_c12_cd_work_area(undeclared, false);
     c12::test::test_c12_declares_runtime_code_module_window(runtime);
     c12::test::test_c12_declares_measured_packet_pool();
+    c12::test::test_c12_widens_frustum_half_width_with_the_canvas();
+    c12::test::test_c12_widens_the_polygon_window_margin();
+    c12::test::test_c12_polygon_window_reject();
+    c12::test::test_c12_widescreen_policy_follows_the_enhancement();
     lucent::info("c12.runtime",
-                 "PASS: 9/9 C-12 VSync/query/admission, stock CD work-area, CD ready-callback, "
-                 "runtime-code-module and 2D packet-pool checks");
+                 "PASS: 13/13 C-12 VSync/query/admission, stock CD work-area, CD ready-callback, "
+                 "runtime-code-module, 2D packet-pool and widescreen checks");
     return 0;
   } catch (const std::exception &error) {
     lucent::error("c12.runtime", "FAIL: {}", error.what());

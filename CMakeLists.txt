@@ -28,7 +28,11 @@ if(C12_BUILD_RUNTIME)
     game/frame/guest_field_loop.cpp
     game/frame/vsync_continuation.cpp
     game/image/authenticated_image.cpp
+    game/render/view_frustum.cpp
+    game/render/world_mesh_pass.cpp
     game/runtime/c12_runtime.cpp
+    game/title/enhancements.cpp
+    game/widescreen/widescreen_policy.cpp
   )
   target_link_libraries(c12_runtime PUBLIC psxport)
   target_include_directories(c12_runtime PUBLIC
@@ -37,7 +41,10 @@ if(C12_BUILD_RUNTIME)
     "${CMAKE_CURRENT_SOURCE_DIR}/game/facts"
     "${CMAKE_CURRENT_SOURCE_DIR}/game/frame"
     "${CMAKE_CURRENT_SOURCE_DIR}/game/image"
+    "${CMAKE_CURRENT_SOURCE_DIR}/game/render"
     "${CMAKE_CURRENT_SOURCE_DIR}/game/runtime"
+    "${CMAKE_CURRENT_SOURCE_DIR}/game/title"
+    "${CMAKE_CURRENT_SOURCE_DIR}/game/widescreen"
     "${CMAKE_CURRENT_BINARY_DIR}/metadata")
   add_executable(c12_port game/entry/player_entry.cpp)
   target_link_libraries(c12_port PRIVATE c12_runtime)

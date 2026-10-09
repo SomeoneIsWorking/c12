@@ -2,6 +2,7 @@
 
 #include "game_runtime.h"
 #include "psx_exe_image.h"
+#include "widescreen_policy.h"
 
 namespace c12 {
 
@@ -20,9 +21,11 @@ public:
   const GuestPacketPoolWindows *guestPacketPoolWindows() const override;
   RenderCapabilities renderCapabilities() const override;
   bool guestVramIsPicture(const Game &) const override;
+  const GuestWidescreenProjection *guestWidescreenProjection() const override;
 
 private:
   GuestProgramImage image_;
+  WidescreenPolicy widescreenPolicy_;
 };
 
 } // namespace c12

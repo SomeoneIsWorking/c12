@@ -67,4 +67,29 @@ inline constexpr GuestPacketPoolWindows kPacketPoolWindows = [] {
   return windows;
 }();
 
+// World view frustum corner builder, its table (four 8-byte s16 x, y, z entries) and the zone words it reads.
+inline constexpr std::uint32_t kViewFrustumBuilderAddress = 0x800660D8u;
+inline constexpr std::uint32_t kViewFrustumCornerTableAddress = 0x800F9378u;
+inline constexpr std::uint32_t kFrustumCornerCount = 4u;
+inline constexpr std::uint32_t kFrustumCornerStride = 8u;
+// 16.16 words: projection distance H in the high half, frustum reach in the full word.
+inline constexpr std::uint32_t kZoneProjectionDistanceAddress = 0x800F921Cu;
+inline constexpr std::uint32_t kZoneFrustumReachAddress = 0x800F9220u;
+// Normalizes the (x, y, z) word triple at a0, writing the result to a1.
+inline constexpr std::uint32_t kVectorNormalizeAddress = 0x800A1F10u;
+
+// World terrain polygon pass and the guest words it reads; the header is the zone/visibility state block.
+inline constexpr std::uint32_t kWorldMeshPassAddress = 0x8006769Cu;
+inline constexpr std::uint32_t kWorldHeaderAddress = 0x800F91E4u;
+inline constexpr std::uint32_t kWorldAttributeTableAddress = 0x800F08E0u;
+inline constexpr std::uint32_t kWorldShadeTablesAddress = 0x800F9E00u;
+inline constexpr std::uint32_t kWorldPassSaveAreaAddress = 0x800F9E10u;
+// Subdivision tables in the executable's data: midpoint index pairs per shape, packet slot tables per shape and level.
+inline constexpr std::uint32_t kQuadMidpointPairsAddress = 0x800D8728u;
+inline constexpr std::uint32_t kTriMidpointPairsAddress = 0x800D875Au;
+inline constexpr std::uint32_t kQuadCoarseSlotsAddress = 0x800D8774u;
+inline constexpr std::uint32_t kQuadFineSlotsAddress = 0x800D87E0u;
+inline constexpr std::uint32_t kTriCoarseSlotsAddress = 0x800D890Cu;
+inline constexpr std::uint32_t kTriFineSlotsAddress = 0x800D8954u;
+
 } // namespace c12

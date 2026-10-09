@@ -2,6 +2,8 @@
 
 #include "cd_command_completion.h"
 #include "title_facts.h"
+#include "view_frustum.h"
+#include "world_mesh_pass.h"
 
 namespace c12 {
 
@@ -19,6 +21,8 @@ void C12Runtime::destroyContext(void *) {
 }
 void C12Runtime::registerOverrides(Game &game) {
   installTitleOverrides(game);
+  installViewFrustumOverride(game);
+  installWorldMeshPassOverride(game);
 }
 void C12Runtime::bootInit(Core &) {
 }
@@ -55,6 +59,10 @@ RenderCapabilities C12Runtime::renderCapabilities() const {
 bool C12Runtime::guestVramIsPicture(const Game &) const {
   // No native producer: the guest's GP0 stream is the whole picture.
   return true;
+}
+
+const GuestWidescreenProjection *C12Runtime::guestWidescreenProjection() const {
+  return &widescreenPolicy_;
 }
 
 } // namespace c12

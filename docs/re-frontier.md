@@ -168,3 +168,77 @@ No further static product generation, build, or run is part of this chain.
   "no store to `0x800F1B40..0x800F1B50`" scan was run against the game's `gp` only; libcd's own code
   uses `gp = 0x800F0000` (its `-0x1148(gp)` resolves to `0x800EEEB8`), so a single-gp register scan
   misses that half of the image. One Ghidra reference count is analyzer scope, not execution.
+
+## World projection, culling and distance (main executable, image `c12`)
+
+### camera.projection — GTE projection setup
+
+- status: verified 2026-10-10
+- deps: runtime.gameplay
+- evidence: Gameplay is a 512x240 hires picture with OFX 256, OFY 120 and H 0x17C. The camera struct
+  (pointer in scratchpad `0x1F800060`) holds OFX<<16 at +0x68, OFY<<16 at +0x6A, H at +0xC4 and the fog
+  near/far at +0xD0/+0xD4 (0x1800/0x1FFE). `FUN_8009C830` and `FUN_8009CA4C` load it into the GTE;
+  `FUN_800AF364(near, far, H)` derives DQA/DQB through `FUN_800B8380`/`FUN_800B8390`. The per-zone H
+  word `0x800F920C` is interpolated into the camera by `FUN_80065890`.
+- where: `game/facts/title_facts.h` (`kZoneProjectionDistanceAddress`)
+- notes: the title leaves OFX, OFY and H at retail values at 16:9; the canvas gains margin columns and
+  the cull below is widened. Projected coordinates are therefore identical to 4:3, so no gameplay word
+  moves.
+
+### world.frustum — View frustum corner builder
+
+- status: verified 2026-10-10
+- deps: camera.projection
+- evidence: `FUN_800660D8` builds four frustum corners at `0x800F9378` (stride 8, s16 x, y, z). Each
+  corner is (+-0xA0, +-0x78, H), normalized to length 4096 by `FUN_800A1F10`, then scaled by the zone
+  reach (`0x800F9220`, 0x2000 in 16.16) divided by the normalized z. `FUN_80066234` rasterizes the
+  corners into the visible cells of the 64x64, 1024-unit grid. The 0xA0 half width is a 320-wide
+  window, so the corners are narrower than the 512-wide picture. Native owner
+  `c12::rebuildViewFrustumCorners` reproduces the guest at 4:3 (override differential: match, no
+  mismatch) and scales the half width by presentation/native width at 16:9.
+- where: `game/render/view_frustum.{h,cpp}`
+- gap: the corner table is rebuilt only when the zone changes, so a window resize between zone changes
+  keeps the previous plan's corners.
+
+### world.polygon-pass — Terrain polygon pass and its screen reject
+
+- status: verified 2026-10-10
+- deps: world.frustum
+- evidence: `FUN_800657B4` calls `FUN_8006769C`, the terrain polygon pass. Per polygon it projects with
+  RTPT/RTPS, rejects when all x < 0, all y < 0, none has x < 0x200 or none has y < 0x100, rejects
+  average z < 4 and, past the zone far (`0x800F91E4+0x54`, the fog far, 0x1FFE), clamps the OT slot to
+  `otLength-3`, shades from the `TerrainFog` tables at `0x800F9E00`, and tessellates through the tables at
+  `0x800D8728..0x800D8954`. Widening the frustum corners alone did not change the picture: this fixed
+  512x256 window reject is the binding cull. Patching its four `slti 0x200` immediates filled the right
+  margin, which located it. `c12::drawWorldMeshPass` is a native port of the whole function; at 4:3 the
+  override differential reports match with no mismatch and the 4:3 picture is unchanged, at 16:9 the
+  reject extends by `widenedWindowMargin` columns per side and the margin voids are filled.
+- where: `game/render/world_mesh_pass.{h,cpp}`, `game/facts/title_facts.h`
+- gap: the override differential report was never finalized (the process was ended before the report
+  completed); the verdict was read from the log. `FUN_800684C0` (below) and object/actor culling were not
+  widened, so voids beyond the terrain margin may remain.
+
+### world.cell-collector — Visible cell footprint (`Capture`)
+
+- status: partial 2026-10-10
+- deps: world.frustum
+- evidence: `FUN_8006572C` calls `FUN_800684C0(cam, 0x96, 0x800F9398)`, which walks the frustum footprint
+  on the ground plane and writes up to 0x96 twelve-byte cell entries (the buffer ends at `0x800F9AA4`,
+  so it is exactly full at 150) and the count at `0x800F9274` (0x27 at the first mission spawn). It has its
+  own `0x80008000` sign-bit screen reject around `0x80069038..0x800691B4`.
+- gap: the reject has not been decoded to the point of deciding whether it needs widening.
+
+### world.distance — Far clip, fog and LOD distance
+
+- status: owners recovered, draw distance not implemented 2026-10-10
+- deps: world.polygon-pass, world.cell-collector
+- evidence: the zone record (`0x800D86F0 + idx*0x18`, loaded by `FUN_80065F68`, interpolated per frame by
+  `FUN_80065890` into `0x800F9204..`) holds the visible far (`0x800F920E`, word `0x800F9220`) and the fog
+  near/far (`0x800F9214/16`, words `0x800F9234/38`). The fog far is also the polygon pass far clip. The
+  fog is a per-level table built by `FUN_800675B8` and allocated by `FUN_800674C8` with
+  `(header+0x72 >> 6)` entries plus 0x40 padding entries (pool name `TerrainFog`), indexed by `z >> 6`.
+  There is no separate LOD distance for the terrain; subdivision follows polygon area.
+- gap: raising the far needs three fixed structures grown together: the `TerrainFog` allocation in
+  `FUN_800674C8` (entries beyond it read the padding), the 150-entry cell buffer ending at `0x800F9AA4`,
+  and the 0x40-row footprint tables at `0x800F9D00`. The cell buffer is static and full-width against its
+  neighbour, so it cannot be grown without relocating guest data. Decision recorded in S022.
