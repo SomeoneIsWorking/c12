@@ -97,9 +97,9 @@ No further static product generation, build, or run is part of this chain.
 
 ### runtime.gameplay — Reach representative interactive gameplay
 
-- status: todo
+- status: first mission reached 2026-10-09 (spawn street, player moves under pad); combat and mission exit unreached
 - deps: runtime.lightrec
-- evidence:
+- evidence: NEW GAME → `GRISHAM'S LOG` → briefing cutscene (`X SKIP`) → first mission, master `0x800F1B40=3`; the character moves under `hold` and under `replays/first-mission/menu-to-mission-run-right-left.pad`; recordcheck 2,462 presents, 0 mismatched at 1x 4:3. No further CD, completion or input blocker was met past the briefing: the earlier 'stops at the briefing' reading was the cutscene waiting for `X`.
 - where: future title-owned driver, native overrides, and bounded gameplay scenario
 - gap: Reach and drive an interactive scenario with correct input, guest state, memory,
   interrupt/timing, relevant devices, audio, rendering, and declared frame-time evidence on every

@@ -1,13 +1,16 @@
 #include "c12_runtime.h"
 #include "cd_control.h"
+#include "core.h"
 #include "execution_control.h"
 #include "execution_exit.h"
 #include "game.h"
 #include "guest_cd_stream_callback_layout.h"
 #include "guest_code_module.h"
 #include "guest_packet_pool_windows.h"
+#include "machine.h"
 #include "platform_hle.h"
 #include "psx_exe_image.h"
+#include "render_capabilities.h"
 #include "runtime_service_fixture.h"
 #include "title_facts.h"
 
@@ -130,6 +133,26 @@ void test_c12_cd_work_area(GameRuntime &runtime, bool declared) {
           "CD work area publication overwrote adjacent guest state");
 }
 
+void test_c12_declares_the_record_path_without_producers() {
+  psx::cpu::PsxExeImage image{};
+  c12::C12Runtime runtime(image);
+  const RenderCapabilities capabilities = runtime.renderCapabilities();
+  require(capabilities.defaultPath == RenderPath::Record, "C-12 does not default to the record path");
+  require(!capabilities.nativeRenderPath && !capabilities.supports(RenderPath::Native),
+          "C-12 declared a native render path it has no producers for");
+  require(!capabilities.temporalInterpolation, "C-12 declared an interpolation product it does not own");
+  require(capabilities.supports(RenderPath::Record) && capabilities.supports(RenderPath::Gte),
+          "C-12 dropped the record or guest-geometry path");
+  require(render_path_resolve(RenderPath::Native, capabilities) == RenderPath::Record,
+          "a native request on C-12 did not resolve to its record path");
+}
+
+void test_c12_machine_installs_the_declared_render_path() {
+  c12::Machine machine{c12::AuthenticatedImage{}};
+  require(machine.core().rsub.mode.path() == RenderPath::Record,
+          "the C-12 machine did not install its declared record render path");
+}
+
 void test_c12_declares_guest_interrupt_cd_delivery() {
   psx::cpu::PsxExeImage image{};
   c12::C12Runtime runtime(image);
@@ -186,6 +209,8 @@ int main() {
     c12::test::test_c12_installs_typed_frame_boundary_without_guest_override();
     c12::test::test_c12_vsync_negative_query_answers_guest_counter();
     c12::test::test_c12_does_not_admit_adjacent_guest_code();
+    c12::test::test_c12_declares_the_record_path_without_producers();
+    c12::test::test_c12_machine_installs_the_declared_render_path();
     c12::test::test_c12_declares_guest_interrupt_cd_delivery();
     psx::cpu::PsxExeImage image{};
     c12::C12Runtime runtime(image);

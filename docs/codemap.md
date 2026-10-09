@@ -11,15 +11,16 @@ repository's `docs/codemap.md`; this page covers what C-12 owns and where a defe
 | Directory | Namespace | Class / owner | Responsibility |
 | --- | --- | --- | --- |
 | `game/entry/` | `c12::app`, `c12::probe` | `runPlayer`, `observe` (plus each translation unit's `main`) | The two executable entry points. Each parses its arguments, composes a `Machine`, and hands the run to the owner of the next step. No boot policy or field logic lives here. |
-| `game/boot/` | `c12` | `Machine` | The whole machine for one run: the installed title runtime policy, the authenticated image, and the `Game` carrying 2 MiB of guest RAM. Construction installs the policy and binds the per-Core devices; `mapExecutable` maps the guest executable and reports the framework's refusal. |
+| `game/boot/` | `c12` | `Machine` | The whole machine for one run: the installed title runtime policy, the authenticated image, and the `Game` carrying 2 MiB of guest RAM. Construction installs the policy, binds the per-Core devices and resolves the render path (`render_path_install`, the title's declared `RenderCapabilities`); `mapExecutable` maps the guest executable and reports the framework's refusal. |
 | `game/frame/` | `c12` | `GuestFieldLoop` | The display-field owner. `run` turns fields until a frame limit or an unresumable turn; `stepField` latches input, executes one guest turn, resumes the VSync continuation, and crosses the presentation fence exactly once per field. |
 | `game/frame/` | `c12` | `resumeVsyncContinuation` | The one rule for a guest VSync continuation in `r31`: aligned and owned by a loaded image, or refused and reported. Shared by the player and the probe. |
 | `game/cd/` | `c12` | `installTitleOverrides`, `completeCdReadySyncCommand` | This title's CD completion owner. It runs the guest's own `CdReadySync` body at its measured `0x800ABD98` — so the command is still issued by the guest through the framework's declared `cdCommandAddress` seam — and then delivers the completion that body's own libcd poll would have delivered, to the guest's CURRENT registered command-status callback at `0x800EEEB8`. It is a native override, not a hardware service, because only the native-override table has the one-call suppression scope that makes running the original legal. Installed from `C12Runtime::registerOverrides`, after the executable is mapped. |
 | `game/facts/` | `c12` | none (measured constants) | The guest addresses, HLE plan, module-arena window, CD ready-callback layout and packet-pool window C-12 publishes to psxport. Values only; evidence is in `docs/re-frontier.md`. |
-| `game/runtime/` | `c12` | `C12Runtime` | The title's `GameRuntime` policy: the authenticated program's image facts, the declared HLE/streaming/pool facts, and the statement that this title's guest VRAM is its picture. No behaviour of its own — psxport owns the behavior these facts select. |
+| `game/runtime/` | `c12` | `C12Runtime` | The title's `GameRuntime` policy: the authenticated program's image facts, the declared HLE/streaming/pool facts, the record-path render capability (no native producers, no interpolation) and the statement that this title's guest VRAM is its picture. No behaviour of its own — psxport owns the behavior these facts select. |
 | `game/image/` | `c12` | `authenticateImage`, `readAuthenticatedImage`, `AuthenticatedImage`, `ExecutableIdentity`, `kUsaIdentity` | Exact-revision admission of the USA executable: size, SHA-256, then PS-X EXE parse. Nothing about the executable is trusted before this returns. `kUsaIdentity` is materialized by CMake from `title.json`. |
 | `tools/` | — | `config`, `launcher`, `title_identity`, `source_policy`, `psxport_fetch`, `verify` | Python side: disc-path resolution and the zero-argument launch, the same identity check outside C++, the retired-static-path gate, framework resolution, and the asset-free verification command. |
-| `tests/` | `c12::test` | fixtures and two test binaries | Admission contract for the image and the title's runtime-service declarations. |
+| `tests/` | `c12::test` | fixtures and two test binaries | Admission contract for the image and the title's runtime-service declarations, including the declared record path and that `Machine` installs it. |
+| `replays/` | — | recorded pad files | `first-mission/menu-to-mission-run-right-left.pad`: unkeyed (absolute from boot) pad recording, boot → menu → NEW GAME → story page → briefing skip → first mission → run right then left. Feed with `PSXPORT_PAD_REPLAY`. |
 
 ## Who owns it
 
@@ -54,9 +55,8 @@ the open controllers, and the keyboard/game overlay decision; `drainEvents` is i
 
 ### Guest draw → presentation
 
-Guest GP0 packets → `psxport RenderQueue` capture → `psx::frame::FramePresenter::commit` pacing and present,
-with `c12::C12Runtime::guestVramIsPicture` declaring that this title has no native producer, so
-guest VRAM is the picture. `gpu_vk_windowed()` decides windowed versus headless presentation for the
+Guest GP0 packets → the GPU device (which holds guest VRAM) and `Gp0RecordTap` → `psx::frame::FramePresenter::commit` seals one record per field and presents it through `RecordRasterizer` (`RenderPath::Record`, declared by `c12::C12Runtime::renderCapabilities`, resolved by `c12::Machine` through `render_path_install`), with `guestVramIsPicture` declaring that this title has no native producer, so
+guest VRAM is the picture. `PSXPORT_DEBUG=recordcheck` compares each present with the device. `gpu_vk_windowed()` decides windowed versus headless presentation for the
 whole run. 60 fps interpolation and widescreen are framework-owned enhancements that this title does
 not yet enable (S008/S010 in `docs/project-state.md`).
 

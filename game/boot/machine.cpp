@@ -6,6 +6,7 @@
 #include "game.h"
 #include "hw_bind.h"
 #include "psx_exe_image.h"
+#include "render_mode.h"
 
 namespace c12 {
 
@@ -25,6 +26,7 @@ Machine::Machine(AuthenticatedImage image) : image_(std::move(image)), runtime_(
   game_->platform_hle.initBuiltins();
   game_->platform_hle.requireNativeFrameLoopContract();
   game_->pad.overridesInit();
+  render_path_install(&core);
 }
 
 Core &Machine::core() {

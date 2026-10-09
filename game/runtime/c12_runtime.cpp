@@ -44,7 +44,12 @@ const GuestPacketPoolWindows *C12Runtime::guestPacketPoolWindows() const {
 }
 
 RenderCapabilities C12Runtime::renderCapabilities() const {
-  return RenderCapabilities::direct();
+  // The picture is the guest's GP0 output replayed from the frame record; no native producers, no interpolation yet.
+  return RenderCapabilities{
+      .defaultPath = RenderPath::Record,
+      .nativeRenderPath = false,
+      .temporalInterpolation = false,
+  };
 }
 
 bool C12Runtime::guestVramIsPicture(const Game &) const {
