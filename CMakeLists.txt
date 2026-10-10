@@ -28,6 +28,10 @@ if(C12_BUILD_RUNTIME)
     game/frame/guest_field_loop.cpp
     game/frame/vsync_continuation.cpp
     game/image/authenticated_image.cpp
+    game/render/cell_collector.cpp
+    game/render/cell_output.cpp
+    game/render/draw_distance.cpp
+    game/render/fog_table.cpp
     game/render/view_frustum.cpp
     game/render/world_mesh_pass.cpp
     game/runtime/c12_runtime.cpp
@@ -63,6 +67,9 @@ if(BUILD_TESTING)
     target_link_libraries(c12_image_contract PRIVATE c12_runtime)
     add_executable(c12_runtime_services tests/test_runtime_services.cpp)
     target_link_libraries(c12_runtime_services PRIVATE c12_runtime)
+    add_executable(c12_draw_distance tests/test_draw_distance.cpp)
+    target_link_libraries(c12_draw_distance PRIVATE c12_runtime)
+    add_test(NAME c12_draw_distance COMMAND c12_draw_distance)
     add_test(NAME c12_image_contract COMMAND c12_image_contract
       "${CMAKE_CURRENT_SOURCE_DIR}/scratch/tests/c12-image-contract")
     add_test(NAME c12_runtime_services COMMAND c12_runtime_services)

@@ -13,6 +13,7 @@ public:
   void *createContext(Core &) override;
   void destroyContext(void *) override;
   void registerOverrides(Game &) override;
+  std::span<const TitleIntSetting> titleIntSettings() const override;
   void bootInit(Core &) override;
   const GuestProgramImage *guestProgramImage() const override;
   const PlatformHlePlan *platformHlePlan() const override;

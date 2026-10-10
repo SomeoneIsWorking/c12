@@ -191,8 +191,8 @@ No further static product generation, build, or run is part of this chain.
 - deps: camera.projection
 - evidence: `FUN_800660D8` builds four frustum corners at `0x800F9378` (stride 8, s16 x, y, z). Each
   corner is (+-0xA0, +-0x78, H), normalized to length 4096 by `FUN_800A1F10`, then scaled by the zone
-  reach (`0x800F9220`, 0x2000 in 16.16) divided by the normalized z. `FUN_80066234` rasterizes the
-  corners into the visible cells of the 64x64, 1024-unit grid. The 0xA0 half width is a 320-wide
+  reach (`0x800F9220`, 0x2000 in 16.16) divided by the normalized z. `FUN_800684C0` rasterizes the
+  corners into the visible cells of the 64x64, 1024-unit grid (`FUN_80066234` is dead code, see world.cell-collector). The 0xA0 half width is a 320-wide
   window, so the corners are narrower than the 512-wide picture. Native owner
   `c12::rebuildViewFrustumCorners` reproduces the guest at 4:3 (override differential: match, no
   mismatch) and scales the half width by presentation/native width at 16:9.
@@ -220,17 +220,36 @@ No further static product generation, build, or run is part of this chain.
 
 ### world.cell-collector — Visible cell footprint (`Capture`)
 
-- status: partial 2026-10-10
+- status: verified 2026-10-10
 - deps: world.frustum
-- evidence: `FUN_8006572C` calls `FUN_800684C0(cam, 0x96, 0x800F9398)`, which walks the frustum footprint
-  on the ground plane and writes up to 0x96 twelve-byte cell entries (the buffer ends at `0x800F9AA4`,
-  so it is exactly full at 150) and the count at `0x800F9274` (0x27 at the first mission spawn). It has its
-  own `0x80008000` sign-bit screen reject around `0x80069038..0x800691B4`.
-- gap: the reject has not been decoded to the point of deciding whether it needs widening.
+- evidence: `FUN_8006572C` clears the visible flag (cell record byte 6, bit 0) of every cell in the
+  zero-terminated pointer list at `0x800F9AA4`, then calls `FUN_800684C0(cam, 0x96, 0x800F9398)`, which is
+  the live collector: it rotates the four frustum corners (`0x800F9378`), clips them to the ground plane
+  (`0x800F0830/34`, limit `0x800F0838`), rasterizes the footprint into the row tables
+  (`0x800F9E34` first column, `0x800F9EB4` last column, 64 s16 rows each, via `FUN_80069500`), then walks the
+  rows and keeps every cell whose box survives a GTE RTPT/RTPS screen test, as a 12-byte entry
+  (count, skips-tail, top y, polygon list) in the 150-entry buffer ending at `0x800F9AA4`, a list pointer
+  and the visible flag. It returns the count, stored at `0x800F9274`. `FUN_80066234` and its tables at
+  `0x800F9D00` are an older collector nothing calls.
+  Native owner `c12::collectVisibleCells` reproduces it: the override differential over the whole first-mission
+  replay at every call reports no mismatch (4:3, increase 0).
+- survey of the readers and writers (`decomp_pipeline.py --refs`): cell buffer `0x800F9398`: written by
+  `FUN_800684C0`, read by `FUN_8006769C` (terrain pass, native); pointer list `0x800F9AA4`: written by
+  `FUN_800684C0`, `FUN_80066234` (dead) and `FUN_800655E8` (level init, terminator), read by `FUN_8006572C`;
+  count `0x800F9274`: written by `FUN_8006572C`, read by `FUN_800657B4` and `FUN_8006769C`; row tables
+  `0x800F9E34/0x800F9EB4`: written by `FUN_80068334` (init), `FUN_800684C0` and `FUN_80069500`, read by
+  `FUN_800684C0`; visited-polygon list (header `+0x88`, capacity header `+0x08`): written by `FUN_800655E8`,
+  used only inside `FUN_8006769C`; fog words `0x800F9234..0x800F9240` and bias `0x800F1588`: read by
+  `FUN_800675B8` (called from three sites on zone load); `TerrainFog` descriptor `0x800F9E00..`: written by
+  `FUN_800674C8`, read by `FUN_8006769C`.
+- where: `game/render/cell_collector.{h,cpp}`, `game/render/cell_output.{h,cpp}`, `game/facts/title_facts.h`
+- gap: the native terrain pass (`FUN_8006769C`) is NOT exact at call 92 of the first-mission replay under the
+  every-call override differential (the port from the widescreen work, unchanged by the draw distance work):
+  the last packets of that call sit 12 bytes apart. The earlier differential only sampled every 64th call.
 
 ### world.distance — Far clip, fog and LOD distance
 
-- status: owners recovered, draw distance not implemented 2026-10-10
+- status: verified 2026-10-10 (route B)
 - deps: world.polygon-pass, world.cell-collector
 - evidence: the zone record (`0x800D86F0 + idx*0x18`, loaded by `FUN_80065F68`, interpolated per frame by
   `FUN_80065890` into `0x800F9204..`) holds the visible far (`0x800F920E`, word `0x800F9220`) and the fog
@@ -238,7 +257,20 @@ No further static product generation, build, or run is part of this chain.
   fog is a per-level table built by `FUN_800675B8` and allocated by `FUN_800674C8` with
   `(header+0x72 >> 6)` entries plus 0x40 padding entries (pool name `TerrainFog`), indexed by `z >> 6`.
   There is no separate LOD distance for the terrain; subdivision follows polygon area.
-- gap: raising the far needs three fixed structures grown together: the `TerrainFog` allocation in
-  `FUN_800674C8` (entries beyond it read the padding), the 150-entry cell buffer ending at `0x800F9AA4`,
-  and the 0x40-row footprint tables at `0x800F9D00`. The cell buffer is static and full-width against its
-  neighbour, so it cannot be grown without relocating guest data. Decision recorded in S022.
+  The three fixed structures: the cell buffer (150 entries, full against the pointer list), the
+  `TerrainFog` allocation and the visited-polygon list are all reached only by the collector and the terrain
+  pass, both native now. The 0x40-row footprint tables are clamped to the grid (64 rows) by `FUN_80069500` and
+  stay guest-owned, so no larger table is needed.
+- route: B. Only a native collector can emit more than 150 cells, because the guest hardcodes the list
+  address and cap, so `c12::collectVisibleCells` runs a grown pass first (frustum corners, ground limit and
+  far scaled by `DrawDistance`; cells whose box does not fit the GTE's signed 16-bit input are kept without a
+  screen test) into a host list, then the retail pass, which leaves the guest buffers, flags, row tables and
+  GTE state exactly retail. The terrain pass draws the host list, nearest first so a full packet pool drops
+  the farthest terrain, scales its far clip and polygon cap, and draws from fade tables stretched by the same
+  factor (`FogTables`). Route A (relocating the structures) was rejected: the guest addresses are immediates
+  in the collector and the terrain pass.
+- where: `game/render/draw_distance.h`, `game/render/cell_collector.cpp`, `game/render/fog_table.cpp`,
+  `game/render/world_mesh_pass.cpp`
+- gap: past about 300 percent the first mission's street shows no more geometry (the level ends); depth is a
+  16-bit z, so very large increases saturate; the guest packet pool is fixed, so dense scenes drop the farthest
+  cells first; object and actor culling is not scaled.

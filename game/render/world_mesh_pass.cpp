@@ -1,6 +1,9 @@
 #include "world_mesh_pass.h"
 
+#include "cell_output.h"
 #include "core.h"
+#include "draw_distance.h"
+#include "fog_table.h"
 #include "game.h"
 #include "guest_widescreen_projection.h"
 #include "native_dispatch.h"
@@ -12,6 +15,8 @@
 #include <array>
 #include <cstdint>
 #include <cstdlib>
+#include <limits>
+#include <span>
 #include <vector>
 
 namespace c12 {
@@ -114,7 +119,6 @@ constexpr std::uint32_t kRefineAreaLimit = 0x1000;
 
 // Subdivision work vertices.
 constexpr std::size_t kWorkVertices = 32;
-constexpr std::size_t kTableGuard = 0x400;
 
 std::int32_t sx(std::uint32_t xy) {
   return static_cast<std::int16_t>(xy & 0xFFFFu);
@@ -144,7 +148,8 @@ enum class Step : std::uint8_t { Accept, Reject, Stop };
 
 class WorldMeshPass {
 public:
-  WorldMeshPass(Core &core, std::int32_t margin) : core_(core), margin_(margin) {
+  WorldMeshPass(Core &core, std::int32_t margin, const DrawDistance &distance)
+      : core_(core), margin_(margin), distance_(distance) {
   }
 
   void run(std::uint32_t level);
@@ -180,19 +185,21 @@ private:
 
   Core &core_;
   std::int32_t margin_;
+  DrawDistance distance_;
 
   std::uint32_t header_ = kWorldHeaderAddress;
   std::uint32_t verts_ = 0;
   std::uint32_t polys_ = 0;
   std::uint32_t uvTable_ = 0;
   std::uint32_t visitedList_ = 0;
+  std::int32_t polygonLimit_ = 0;
   std::uint32_t farWord_ = 0;
   std::uint32_t limitWord_ = 0;
   std::uint32_t threshold_ = 0;
   std::uint32_t packet_ = 0;
-  std::int32_t visible_ = 0;
-  std::vector<std::uint16_t> shade_;
-  std::vector<std::uint8_t> depthByte_;
+  FogTables fog_;
+  std::span<const CellGroup> hostCells_;
+  std::vector<std::uint32_t> visited_;
 
   // The polygon in flight.
   std::uint32_t poly_ = 0;
@@ -232,13 +239,20 @@ void WorldMeshPass::saveCalleeRegisters() {
 void WorldMeshPass::run(std::uint32_t level) {
   saveCalleeRegisters();
   gte_write_data(kGteRgbc, kInitialRgbc);
-  const std::int32_t groups = static_cast<std::int32_t>(core_.mem_r32(header_ + kHeaderGroupCount));
+  WorldVisibility &visibility = worldVisibility(core_);
+  if (visibility.active()) {
+    hostCells_ = visibility.cells();
+  }
+  const std::int32_t groups = visibility.active()
+                                  ? static_cast<std::int32_t>(hostCells_.size())
+                                  : static_cast<std::int32_t>(core_.mem_r32(header_ + kHeaderGroupCount));
   if (groups > 0) {
     loadTables(level);
     setScratch(kSlotHeader, header_);
     setScratch(kSlotGroupsLeft, static_cast<std::uint32_t>(groups));
     runGroups();
   }
+  visibility.clear();
   finish();
 }
 
@@ -247,37 +261,33 @@ void WorldMeshPass::loadTables(std::uint32_t level) {
   polys_ = core_.mem_r32(level + 0x10);
   uvTable_ = core_.mem_r32(level + 0x18);
   visitedList_ = core_.mem_r32(header_ + kHeaderVisited);
-  farWord_ = core_.mem_r32(header_ + kHeaderFar);
+  farWord_ = static_cast<std::uint32_t>(
+      std::min<std::int64_t>(distance_.scale(static_cast<std::int32_t>(core_.mem_r32(header_ + kHeaderFar))),
+                             std::numeric_limits<std::int32_t>::max()));
   limitWord_ = core_.mem_r32(header_ + kHeaderLimits);
+  polygonLimit_ = distance_.increased() ? std::numeric_limits<std::int32_t>::max()
+                                        : static_cast<std::int32_t>(limitWord_ & 0xFFFFu);
   setScratch(kSlotAttributeTable, core_.mem_r32(kWorldAttributeTableAddress));
-
-  const std::uint32_t byteTable = core_.mem_r32(kWorldShadeTablesAddress + 8);
-  const std::uint32_t shadeTable = core_.mem_r32(kWorldShadeTablesAddress + 4);
-  const std::uint32_t entries = core_.mem_r16(kWorldShadeTablesAddress + 0xC) + 0x40u;
-  if ((core_.mem_r16(header_ + kHeaderModeFlags) & kHeaderPaged) != 0) {
-    // The guest copies whole 16-byte blocks, at least one.
-    const std::uint32_t blocks = std::max(entries >> 4, 1u);
-    depthByte_.assign(static_cast<std::size_t>(blocks) * 16 + kTableGuard, 0);
-    for (std::uint32_t i = 0; i < static_cast<std::size_t>(blocks) * 16; ++i) {
-      depthByte_[i] = core_.mem_r8(byteTable + i);
-    }
-  }
-  const std::uint32_t blocks = std::max(entries >> 3, 1u);
-  shade_.assign(static_cast<std::size_t>(blocks) * 8 + kTableGuard, 0);
-  for (std::uint32_t i = 0; i < static_cast<std::size_t>(blocks) * 8; ++i) {
-    shade_[i] = core_.mem_r16(shadeTable + 2 * i);
-  }
+  fog_ = FogTables::load(core_, (core_.mem_r16(header_ + kHeaderModeFlags) & kHeaderPaged) != 0, distance_);
 }
 
 Flow WorldMeshPass::runGroups() {
   std::uint32_t group = header_ + kHeaderGroups;
   std::int32_t groupsLeft = 0;
+  std::size_t next = 0;
   do {
-    const std::uint32_t count = core_.mem_r16(group);
-    const std::uint32_t polyList = core_.mem_r32(group + 8);
+    std::uint32_t count = core_.mem_r16(group);
+    std::uint32_t polyList = core_.mem_r32(group + 8);
+    std::uint32_t threshold = core_.mem_r32(group + 4);
+    if (!hostCells_.empty()) {
+      const CellGroup &cell = hostCells_[next++];
+      count = cell.polygonCount;
+      polyList = cell.polygonList;
+      threshold = cell.skipsTail | (static_cast<std::uint32_t>(cell.topY) << 16);
+    }
     setScratch(kSlotPolysLeft, count);
     if (count != 0) {
-      threshold_ = core_.mem_r32(group + 4);
+      threshold_ = threshold;
       if (runPolygons(polyList) == Flow::Stop) {
         return Flow::Stop;
       }
@@ -318,14 +328,15 @@ Flow WorldMeshPass::visitPolygon(std::uint32_t poly) {
       return Flow::Next;
     }
   }
-  if (visible_ >= static_cast<std::int32_t>(limitWord_ & 0xFFFFu)) {
+  if (static_cast<std::int64_t>(visited_.size()) >= polygonLimit_) {
     return Flow::Stop;
   }
   flags_ |= kPolyVisited;
   quad_ = (flags_ & kPolyQuad) != 0;
-  core_.mem_w32(visitedList_, poly);
-  visitedList_ += 4;
-  ++visible_;
+  if (visited_.size() < static_cast<std::size_t>(limitWord_ & 0xFFFFu)) {
+    core_.mem_w32(visitedList_ + 4 * static_cast<std::uint32_t>(visited_.size()), poly);
+  }
+  visited_.push_back(poly);
   core_.mem_w32(poly + 0xC, flags_);
   return projectPolygon() == Step::Stop ? Flow::Stop : Flow::Next;
 }
@@ -466,7 +477,7 @@ void WorldMeshPass::prepareAttributes() {
 
   std::uint32_t clut = core_.mem_r16(attribute_ + 6);
   if ((core_.mem_r16(scratch(kSlotHeader) + kHeaderModeFlags) & kHeaderPaged) != 0) {
-    clut += static_cast<std::uint32_t>(depthByte_[static_cast<std::uint32_t>(rawDepth_) >> 6]) << 6;
+    clut += static_cast<std::uint32_t>(fog_.depthByte(static_cast<std::uint32_t>(rawDepth_) >> 6)) << 6;
   }
   clutWord_ = clut << 16;
   setScratch(kSlotClut, clutWord_);
@@ -540,7 +551,7 @@ void WorldMeshPass::shadeVertices() {
   for (std::uint32_t i = 0; i < count; ++i) {
     const std::uint32_t depth = scratch(kSlotDepths + 4 * i);
     gte_write_data(kGteIrgb, shadeIndex_[i]);
-    gte_write_data(kGteIr0, shade_[depth >> 6]);
+    gte_write_data(kGteIr0, fog_.shade(static_cast<std::uint32_t>(depth) >> 6));
     gte_op(&core_, kDpcl);
     colors_[i] = gte_read_data(kGteRgb2);
     work_[i].color = colors_[i];
@@ -733,12 +744,10 @@ void WorldMeshPass::linkSubdivided() {
 }
 
 void WorldMeshPass::finish() {
-  while (visible_ > 0) {
-    visitedList_ -= 4;
-    const std::uint32_t poly = core_.mem_r32(visitedList_);
-    --visible_;
-    core_.mem_w32(poly + 0xC, core_.mem_r32(poly + 0xC) & ~kPolyVisited);
+  for (auto poly = visited_.rbegin(); poly != visited_.rend(); ++poly) {
+    core_.mem_w32(*poly + 0xC, core_.mem_r32(*poly + 0xC) & ~kPolyVisited);
   }
+  visited_.clear();
   for (std::uint32_t i = 0; i < kSavedCount; ++i) {
     core_.r[kFirstSaved + i] = core_.mem_r32(kWorldPassSaveAreaAddress + 4 * i);
   }
@@ -781,7 +790,8 @@ void installWorldMeshPassOverride(Game &game) {
 void drawWorldMeshPass(Core *host) {
   Core &core = *host;
   const GuestProjectionPlan &plan = core.game->guestDisplay.plan();
-  WorldMeshPass pass(core, widenedWindowMargin(plan.nativeExtent.width, plan.presentationExtent.width));
+  WorldMeshPass pass(
+      core, widenedWindowMargin(plan.nativeExtent.width, plan.presentationExtent.width), currentDrawDistance());
   pass.run(core.r[kA0]);
 }
 

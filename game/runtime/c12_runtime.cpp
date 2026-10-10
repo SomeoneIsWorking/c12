@@ -1,6 +1,9 @@
 #include "c12_runtime.h"
 
 #include "cd_command_completion.h"
+#include "cell_collector.h"
+#include "cell_output.h"
+#include "enhancements.h"
 #include "title_facts.h"
 #include "view_frustum.h"
 #include "world_mesh_pass.h"
@@ -14,14 +17,21 @@ C12Runtime::C12Runtime(const psx::cpu::PsxExeImage &header) {
 }
 
 void *C12Runtime::createContext(Core &) {
-  return nullptr;
+  return new WorldVisibility();
 }
 
-void C12Runtime::destroyContext(void *) {
+void C12Runtime::destroyContext(void *context) {
+  delete static_cast<WorldVisibility *>(context);
 }
+
+std::span<const TitleIntSetting> C12Runtime::titleIntSettings() const {
+  return c12::titleIntSettings();
+}
+
 void C12Runtime::registerOverrides(Game &game) {
   installTitleOverrides(game);
   installViewFrustumOverride(game);
+  installCellCollectorOverride(game);
   installWorldMeshPassOverride(game);
 }
 void C12Runtime::bootInit(Core &) {
