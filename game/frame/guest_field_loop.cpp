@@ -22,6 +22,10 @@ void GuestFieldLoop::run(int frameLimit) {
     }
     game_.dbg_server.service(&core_);
     game_.dbg_server.honourPause(&core_);
+    if (game_.dbg_server.takeQuitRequest()) {
+      lucent::info("c12.fields", "the run was asked to stop after {} field(s)", fields_);
+      return;
+    }
   }
 }
 

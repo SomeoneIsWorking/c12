@@ -214,9 +214,8 @@ No further static product generation, build, or run is part of this chain.
   override differential reports match with no mismatch and the 4:3 picture is unchanged, at 16:9 the
   reject extends by `widenedWindowMargin` columns per side and the margin voids are filled.
 - where: `game/render/world_mesh_pass.{h,cpp}`, `game/facts/title_facts.h`
-- gap: the override differential report was never finalized (the process was ended before the report
-  completed); the verdict was read from the log. `FUN_800684C0` (below) and object/actor culling were not
-  widened, so voids beyond the terrain margin may remain.
+- gap: `FUN_800684C0` (below) and object/actor culling were not widened, so voids beyond the terrain margin
+  may remain.
 
 ### world.cell-collector — Visible cell footprint (`Capture`)
 
@@ -243,9 +242,11 @@ No further static product generation, build, or run is part of this chain.
   `FUN_800675B8` (called from three sites on zone load); `TerrainFog` descriptor `0x800F9E00..`: written by
   `FUN_800674C8`, read by `FUN_8006769C`.
 - where: `game/render/cell_collector.{h,cpp}`, `game/render/cell_output.{h,cpp}`, `game/facts/title_facts.h`
-- gap: the native terrain pass (`FUN_8006769C`) is NOT exact at call 92 of the first-mission replay under the
-  every-call override differential (the port from the widescreen work, unchanged by the draw distance work):
-  the last packets of that call sit 12 bytes apart. The earlier differential only sampled every 64th call.
+- gap: the every-call differential compares the native pass with the retail body, so it is exact only with
+  `PSXPORT_C12_WIDESCREEN=0` and the draw distance at 0: 1167 of 1167 calls of the first-mission replay match.
+  With widescreen on, the first mismatch is call 92: a polygon wholly right of column 512 that the widened reject
+  (`widenedWindowMargin`) keeps and the retail body drops. Above 0 percent the far clip, fog and host cell list
+  differ by design. The differential cannot compare either enhanced path.
 
 ### world.distance — Far clip, fog and LOD distance
 
