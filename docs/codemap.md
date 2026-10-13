@@ -52,7 +52,7 @@ the open controllers, and the keyboard/game overlay decision; `drainEvents` is i
   active-low mask owner, and the guest's own scan (`FUN_80043dec`) turns the delivered bits into its
   menu state.
 - Whether a live window exists is answered in one place, `gpu_vk_windowed()` (`gpu_vk.h`), which
-  gates host input, the audio device, and a title-owned headless frame cap.
+  gates host input and the audio device; `psx::host::RunBudget` reads it for the headless cap.
 - Forced input for a driven run and the debug pad drive come from `Pad` through the control channel's
   `tap` command.
 
@@ -80,8 +80,9 @@ and opened by `runPlayer`. The probe deliberately runs silent.
 
 ### Debug options and the control channel
 
-`psxport DbgServer::attach` from `runPlayer` (always open on loopback; `PSXPORT_DEBUG_SERVER` names
-the port) → `DbgServer::service` between fields in `GuestFieldLoop::run` → `honourPause`. The channel
+`psxport DbgServer::start` from `runPlayer` (always open on loopback; `PSXPORT_DEBUG_SERVER` names
+the port) → `DbgServer::service` between fields in `GuestFieldLoop::run` → `honourPause`. The field
+cap is `psx::host::RunBudget::fromConfig()`'s, which also lifts it for a live client. The channel
 is framework-owned; C-12 declares no debug option of its own today, so a new one belongs in a
 title-owned module under `game/` reachable from the frame owner, never inside the probe.
 

@@ -8,6 +8,7 @@
 #include "cfg.h"
 #include "game.h"
 #include "lightrec_executor.h"
+#include "run_budget.h"
 
 #include <lucent/log.h>
 
@@ -49,13 +50,13 @@ int runPlayer(int argc, char **argv) {
   machine.game().spu_audio.init();
   machine.runtime().registerOverrides(machine.game());
 
-  const int clientCap = machine.game().dbg_server.attach(&core, cfg_int("PSXPORT_NATIVE_FRAMES", 0));
+  machine.game().dbg_server.start(&core);
   GuestFieldLoop fields(machine.game(), core);
 
   lucent::info(
       "c12.boot", "authenticated {} at PC 0x{:08x} — entering the title field lifecycle", kUsaIdentity.name, core.pc);
 
-  fields.run(clientCap > 0 ? clientCap : 0);
+  fields.run(psx::host::RunBudget::fromConfig().cap());
 
   const auto &counts = core.lightrecExecutor().counters();
   lucent::info("c12.boot",
