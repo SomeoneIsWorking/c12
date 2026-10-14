@@ -1,5 +1,14 @@
 {
   "executable": "SCUS_946.66",
   "size": 921600,
-  "sha256": "0b93d073ecc211a51431ee8e3eaf8e72f3aa33e6bc0b985a408c0f37a4cc9c87"
+  "sha256": "0b93d073ecc211a51431ee8e3eaf8e72f3aa33e6bc0b985a408c0f37a4cc9c87",
+  "disc_executable": "SCUS_946.66",
+  "header": {
+    "entry": "0x800A8454",
+    "gp": "0x00000000",
+    "text_address": "0x80010000",
+    "text_size": "0x000E0800",
+    "stack_address": "0x801FFFF0",
+    "stack_offset": "0x00000000"
+  }
 }

@@ -1,16 +1,17 @@
+#include "c12_frame_driver.h"
 #include "c12_runtime.h"
 #include "cd_control.h"
 #include "core.h"
 #include "enhancements.h"
+#include "executable_identity.h"
 #include "execution_control.h"
 #include "execution_exit.h"
 #include "game.h"
 #include "guest_cd_stream_callback_layout.h"
 #include "guest_code_module.h"
 #include "guest_packet_pool_windows.h"
-#include "machine.h"
+#include "guest_program_image.h"
 #include "platform_hle.h"
-#include "psx_exe_image.h"
 #include "render_capabilities.h"
 #include "runtime_service_fixture.h"
 #include "title_facts.h"
@@ -34,8 +35,7 @@ void harmlessHandler(Core *) {
 }
 
 void test_c12_declares_recorded_vsync_boundary() {
-  psx::cpu::PsxExeImage image{};
-  c12::C12Runtime runtime(image);
+  c12::C12Runtime runtime;
   require(runtime.platformHlePlan() != nullptr, "C-12 did not publish a PlatformHlePlan");
   require(runtime.platformHlePlan()->vsyncAddress == c12::kVSyncAddress,
           "C-12 VSync address changed from the recorded boundary");
@@ -48,8 +48,7 @@ void test_c12_declares_recorded_vsync_boundary() {
 }
 
 void test_c12_installs_typed_frame_boundary_without_guest_override() {
-  psx::cpu::PsxExeImage image{};
-  c12::C12Runtime runtime(image);
+  c12::C12Runtime runtime;
   psxport_install_game(runtime);
   auto game = std::make_unique<Game>();
 
@@ -70,8 +69,7 @@ void test_c12_installs_typed_frame_boundary_without_guest_override() {
 }
 
 void test_c12_vsync_negative_query_answers_guest_counter() {
-  psx::cpu::PsxExeImage image{};
-  c12::C12Runtime runtime(image);
+  c12::C12Runtime runtime;
   psxport_install_game(runtime);
   auto game = std::make_unique<Game>();
   game->platform_hle.initBuiltins();
@@ -84,8 +82,7 @@ void test_c12_vsync_negative_query_answers_guest_counter() {
 }
 
 void test_c12_does_not_admit_adjacent_guest_code() {
-  psx::cpu::PsxExeImage image{};
-  c12::C12Runtime runtime(image);
+  c12::C12Runtime runtime;
   psxport_install_game(runtime);
   auto game = std::make_unique<Game>();
 
@@ -137,8 +134,7 @@ void test_c12_cd_work_area(GameRuntime &runtime, bool declared) {
 }
 
 void test_c12_declares_the_record_path_without_producers() {
-  psx::cpu::PsxExeImage image{};
-  c12::C12Runtime runtime(image);
+  c12::C12Runtime runtime;
   const RenderCapabilities capabilities = runtime.renderCapabilities();
   require(capabilities.defaultPath == RenderPath::Record, "C-12 does not default to the record path");
   require(!capabilities.nativeRenderPath && !capabilities.supports(RenderPath::Native),
@@ -150,15 +146,30 @@ void test_c12_declares_the_record_path_without_producers() {
           "a native request on C-12 did not resolve to its record path");
 }
 
-void test_c12_machine_installs_the_declared_render_path() {
-  c12::Machine machine{c12::AuthenticatedImage{}};
-  require(machine.core().rsub.mode.path() == RenderPath::Record,
-          "the C-12 machine did not install its declared record render path");
+void test_c12_game_installs_the_declared_render_path() {
+  c12::C12Runtime runtime;
+  psxport_install_game(runtime);
+  auto game = std::make_unique<Game>();
+  require(game->core.rsub.mode.path() == RenderPath::Record,
+          "the C-12 Game did not install its declared record render path");
+}
+
+void test_c12_boot_entry_is_the_drivers() {
+  c12::C12Runtime runtime;
+  const GuestProgramImage *image = runtime.guestProgramImage();
+  require(image != nullptr && image->bootEntry == BootEntry::DriverOwned,
+          "C-12 asked the framework to apply a crt0 its frame driver does not need");
+  require(image->residentText.begin == (c12::identity::kTextAddress & 0x1FFFFFFFu) &&
+              image->residentText.end - image->residentText.begin == c12::identity::kTextBytes,
+          "C-12's resident text is not the executable's text extent");
+  psxport_install_game(runtime);
+  auto game = std::make_unique<Game>();
+  require(dynamic_cast<c12::C12FrameDriver *>(runtime.createFrameDriver(*game).get()) != nullptr,
+          "C-12 created no C12FrameDriver");
 }
 
 void test_c12_declares_guest_interrupt_cd_delivery() {
-  psx::cpu::PsxExeImage image{};
-  c12::C12Runtime runtime(image);
+  c12::C12Runtime runtime;
   const auto *layout = runtime.guestCdStreamCallbackLayout();
   require(layout != nullptr, "C-12 published no CD ready-callback layout");
   require(layout->valid(), "C-12 declared no guest ready-callback slot");
@@ -187,8 +198,7 @@ void test_c12_declares_runtime_code_module_window(GameRuntime &runtime) {
 }
 
 void test_c12_declares_measured_packet_pool() {
-  psx::cpu::PsxExeImage image{};
-  c12::C12Runtime runtime(image);
+  c12::C12Runtime runtime;
   const auto *windows = runtime.guestPacketPoolWindows();
   require(windows != nullptr, "C-12 published no 2D packet pool");
   require(windows->valid(), "C-12 declared an empty 2D packet pool");
@@ -226,16 +236,16 @@ void test_c12_polygon_window_reject() {
 }
 
 void test_c12_widescreen_policy_follows_the_enhancement() {
-  psx::cpu::PsxExeImage image{};
-  c12::C12Runtime runtime(image);
-  c12::Machine machine{c12::AuthenticatedImage{}};
+  c12::C12Runtime runtime;
+  psxport_install_game(runtime);
+  auto game = std::make_unique<Game>();
   const GuestWidescreenProjection *policy = runtime.guestWidescreenProjection();
   require(policy != nullptr, "C-12 did not publish a widescreen policy");
   c12::widescreenCvar().set_text(psx::config::Layer::Runtime, "1");
-  require(policy->presentationAspect(machine.core()) == PresentationAspect::Wide16x9,
+  require(policy->presentationAspect(game->core) == PresentationAspect::Wide16x9,
           "the widescreen enhancement did not ask for 16:9");
   c12::widescreenCvar().set_text(psx::config::Layer::Runtime, "0");
-  require(policy->presentationAspect(machine.core()) == PresentationAspect::Standard4x3,
+  require(policy->presentationAspect(game->core) == PresentationAspect::Standard4x3,
           "the disabled enhancement did not stay 4:3");
 }
 
@@ -248,10 +258,10 @@ int main() {
     c12::test::test_c12_vsync_negative_query_answers_guest_counter();
     c12::test::test_c12_does_not_admit_adjacent_guest_code();
     c12::test::test_c12_declares_the_record_path_without_producers();
-    c12::test::test_c12_machine_installs_the_declared_render_path();
+    c12::test::test_c12_game_installs_the_declared_render_path();
+    c12::test::test_c12_boot_entry_is_the_drivers();
     c12::test::test_c12_declares_guest_interrupt_cd_delivery();
-    psx::cpu::PsxExeImage image{};
-    c12::C12Runtime runtime(image);
+    c12::C12Runtime runtime;
     c12::test::test_c12_cd_work_area(runtime, true);
     c12::test::UndeclaredCdWorkAreaRuntime undeclared;
     c12::test::test_c12_cd_work_area(undeclared, false);
@@ -262,7 +272,7 @@ int main() {
     c12::test::test_c12_polygon_window_reject();
     c12::test::test_c12_widescreen_policy_follows_the_enhancement();
     lucent::info("c12.runtime",
-                 "PASS: 13/13 C-12 VSync/query/admission, stock CD work-area, CD ready-callback, "
+                 "PASS: C-12 VSync/query/admission, boot entry, stock CD work-area, CD ready-callback, "
                  "runtime-code-module, 2D packet-pool and widescreen checks");
     return 0;
   } catch (const std::exception &error) {

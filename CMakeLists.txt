@@ -6,7 +6,7 @@ set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
 find_package(Python3 REQUIRED COMPONENTS Interpreter)
 include(CTest)
-option(C12_BUILD_RUNTIME "Build the authenticated native/dynarec startup probe" ON)
+option(C12_BUILD_RUNTIME "Build the C-12 product and its runtime tests" ON)
 
 if(C12_BUILD_RUNTIME)
   set(PSXPORT_DIR "${CMAKE_CURRENT_SOURCE_DIR}/external/psxport" CACHE PATH "Shared psxport checkout")
@@ -20,14 +20,19 @@ if(C12_BUILD_RUNTIME)
   string(JSON C12_EXECUTABLE GET "${C12_IDENTITY_JSON}" executable)
   string(JSON C12_SIZE GET "${C12_IDENTITY_JSON}" size)
   string(JSON C12_SHA256 GET "${C12_IDENTITY_JSON}" sha256)
-  configure_file(game/image/title_identity.h.in metadata/title_identity.h @ONLY)
+  string(JSON C12_DISC_EXECUTABLE GET "${C12_IDENTITY_JSON}" disc_executable)
+  string(JSON C12_EXECUTABLE_ENTRY GET "${C12_IDENTITY_JSON}" header entry)
+  string(JSON C12_EXECUTABLE_GP GET "${C12_IDENTITY_JSON}" header gp)
+  string(JSON C12_EXECUTABLE_TEXT GET "${C12_IDENTITY_JSON}" header text_address)
+  string(JSON C12_EXECUTABLE_TEXT_SIZE GET "${C12_IDENTITY_JSON}" header text_size)
+  string(JSON C12_EXECUTABLE_STACK GET "${C12_IDENTITY_JSON}" header stack_address)
+  string(JSON C12_EXECUTABLE_STACK_OFFSET GET "${C12_IDENTITY_JSON}" header stack_offset)
+  configure_file(game/facts/executable_identity.h.in metadata/executable_identity.h @ONLY)
 
   add_library(c12_runtime STATIC
-    game/boot/machine.cpp
     game/cd/cd_command_completion.cpp
-    game/frame/guest_field_loop.cpp
+    game/frame/c12_frame_driver.cpp
     game/frame/vsync_continuation.cpp
-    game/image/authenticated_image.cpp
     game/render/cell_collector.cpp
     game/render/cell_output.cpp
     game/render/draw_distance.cpp
@@ -40,20 +45,21 @@ if(C12_BUILD_RUNTIME)
   )
   target_link_libraries(c12_runtime PUBLIC psxport)
   target_include_directories(c12_runtime PUBLIC
-    "${CMAKE_CURRENT_SOURCE_DIR}/game/boot"
     "${CMAKE_CURRENT_SOURCE_DIR}/game/cd"
     "${CMAKE_CURRENT_SOURCE_DIR}/game/facts"
     "${CMAKE_CURRENT_SOURCE_DIR}/game/frame"
-    "${CMAKE_CURRENT_SOURCE_DIR}/game/image"
     "${CMAKE_CURRENT_SOURCE_DIR}/game/render"
     "${CMAKE_CURRENT_SOURCE_DIR}/game/runtime"
     "${CMAKE_CURRENT_SOURCE_DIR}/game/title"
     "${CMAKE_CURRENT_SOURCE_DIR}/game/widescreen"
     "${CMAKE_CURRENT_BINARY_DIR}/metadata")
-  add_executable(c12_port game/entry/player_entry.cpp)
-  target_link_libraries(c12_port PRIVATE c12_runtime)
-  add_executable(c12_boot_probe game/entry/boot_probe.cpp)
-  target_link_libraries(c12_boot_probe PRIVATE c12_runtime)
+  psxport_add_product(
+    c12_port
+    CATALOG c12::createCatalog
+    HEADER c12_catalog.h
+    SOURCES game/entry/c12_catalog.cpp
+    LIBRARIES c12_runtime)
+  target_include_directories(c12_port PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/game/entry")
 endif()
 
 if(BUILD_TESTING)
@@ -63,8 +69,9 @@ if(BUILD_TESTING)
   )
   set_tests_properties(c12_source_policy PROPERTIES WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}")
   if(C12_BUILD_RUNTIME)
-    add_executable(c12_image_contract tests/test_authenticated_image.cpp)
-    target_link_libraries(c12_image_contract PRIVATE c12_runtime)
+    add_executable(c12_frame_driver tests/test_frame_driver.cpp)
+    target_link_libraries(c12_frame_driver PRIVATE c12_runtime)
+    add_test(NAME c12_frame_driver COMMAND c12_frame_driver)
     add_executable(c12_runtime_services tests/test_runtime_services.cpp)
     target_link_libraries(c12_runtime_services PRIVATE c12_runtime)
     add_executable(c12_draw_distance tests/test_draw_distance.cpp)
@@ -73,8 +80,8 @@ if(BUILD_TESTING)
     add_executable(c12_world_mesh_pass tests/test_world_mesh_pass.cpp)
     target_link_libraries(c12_world_mesh_pass PRIVATE c12_runtime)
     add_test(NAME c12_world_mesh_pass COMMAND c12_world_mesh_pass)
-    add_test(NAME c12_image_contract COMMAND c12_image_contract
-      "${CMAKE_CURRENT_SOURCE_DIR}/scratch/tests/c12-image-contract")
+    add_test(NAME c12_product_help COMMAND c12_port --help)
+    set_tests_properties(c12_product_help PROPERTIES PASS_REGULAR_EXPRESSION "Usage: c12_port \\[executable\\]")
     add_test(NAME c12_runtime_services COMMAND c12_runtime_services)
     add_test(NAME c12_cpp_style COMMAND "${Python3_EXECUTABLE}"
       "${PSXPORT_DIR}/tools/check_cpp_style.py" --root "${CMAKE_CURRENT_SOURCE_DIR}"

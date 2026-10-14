@@ -55,14 +55,14 @@ No further static product generation, build, or run is part of this chain.
   typed frame boundaries, 92.5 M guest instructions, zero fallback blocks and zero faults. The read
   pump at `0x800AFB70` crosses its retry cycle and stays crossed: `CdRead: retry...` and
   `CdRead: sector error` are both absent from a 2,000-turn run. `c12_port` is now a real product
-  executable: `GuestFieldLoop` runs the guest to each VSync boundary and crosses the framework's ONE
-  presentation fence per field, which is what the `FramePresenter::capture OVERFLOW ... > RQ_MAX`
+  executable: its field owner (now `C12FrameDriver`) runs the guest to each VSync boundary and crosses
+  the framework's ONE presentation fence per field, which is what the `FramePresenter::capture OVERFLOW ... > RQ_MAX`
   refusal was about — the probe never committed a fence, so every field's prims accumulated.
   1,420 presented fields, 1,326 VSync boundaries, 0 fallback, 0 faults, with the loopback control
   channel answering `shot`/`r`/`w32` against the live Core.
 - where: `external/psxport` (`cd_ready_delivery.*`, `cdc_native.cpp`, `cd_override.cpp`,
   `guest_code_module.*`, `guest_packet_pool_windows.*`), `game/facts/title_facts.h`,
-  `game/frame/guest_field_loop.*`, `game/entry/player_entry.cpp`
+  `game/frame/c12_frame_driver.*`, `game/entry/c12_catalog.cpp`
 - CLOSED as a capture artefact, not a product defect: the "alternate-raster-line loss" was measured
   only through `present_shot`, which loses alternate rows at some sink sizes on this host (512x240
   ratio 0.000, 1280x720 ratio 0.500, 512x480 ratio 1.004 on the default Vulkan driver; 512x240 on

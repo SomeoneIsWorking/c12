@@ -1,15 +1,14 @@
 #pragma once
 
 #include "game_runtime.h"
-#include "psx_exe_image.h"
 #include "widescreen_policy.h"
 
 namespace c12 {
 
-// Runs the guest startup unmodified; no native CRT0 or frame driver.
+// Runs the guest startup unmodified from the executable entry; C12FrameDriver owns each field.
 class C12Runtime final : public GameRuntime {
 public:
-  explicit C12Runtime(const psx::cpu::PsxExeImage &header);
+  C12Runtime();
   void *createContext(Core &) override;
   void destroyContext(void *) override;
   void registerOverrides(Game &) override;
@@ -23,6 +22,8 @@ public:
   RenderCapabilities renderCapabilities() const override;
   bool guestVramIsPicture(const Game &) const override;
   const GuestWidescreenProjection *guestWidescreenProjection() const override;
+  std::unique_ptr<FrameDriver> createFrameDriver(Game &game) override;
+  void reportRun(Core &core) const override;
 
 private:
   GuestProgramImage image_;

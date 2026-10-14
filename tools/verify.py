@@ -1,4 +1,4 @@
-"""Verify C-12's redistributable startup boundary via shared build owner."""
+"""Run C-12's asset-free product gate through the shared consumer verifier."""
 
 from __future__ import annotations
 
@@ -18,11 +18,11 @@ def main() -> int:
     build = ROOT / "build" / "maintainer"
     return run_consumer_verification(
         ConsumerVerifyConfig(
-            name="C-12 authenticated startup probe",
+            name="C-12",
             root=ROOT,
             build=build,
             psxport=FRAMEWORK,
-            product=build / "c12_boot_probe",
+            product=build / "c12_port",
             cmake_module=ROOT / "CMakeLists.txt",
             test_regex="^c12_",
             cmake_definitions=("-DC12_BUILD_RUNTIME=ON", "-DBUILD_TESTING=ON"),

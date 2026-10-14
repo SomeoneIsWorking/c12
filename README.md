@@ -5,10 +5,11 @@ The offline translator, generated source corpus, static dispatcher, prior build 
 gameplay executable have been deleted before replacement work. They are not retained as a bridge or
 oracle.
 
-The player target `c12_port` runs the authenticated image: it composes the machine, owns one
-display field at a time, and presents the guest's own picture. `./run.sh` validates the configured
-user disc path and launches it. The separate `c12_boot_probe` maintainer tool boots the same machine
-and drives bounded Lightrec turns without presenting a frame or opening an audio stream.
+The product `c12_port` is psxport's framework `main` over C-12's one-title catalog
+(`game/entry/c12_catalog.cpp`): `ProductHost` authenticates the executable, `TitleSession` boots it,
+and `C12FrameDriver` owns one display field per step and presents the guest's own picture.
+`./run.sh` validates the configured user disc path and launches it with the extracted executable;
+with no argument the product provisions `scratch/bin/c12/SCUS_946.66` from the disc itself.
 
 Configuration is resolved once in `tools/config.py` from `--disc`, `PSXPORT_DISC`, `.env`, or one
 root-level `.chd`, in that order. `bootstrap.py` is a slim entry point and all non-trivial launcher
@@ -22,8 +23,8 @@ uv run --frozen python -m tools.title_identity scratch/c12-identity
 
 It requires `SYSTEM.CNF` to select `SCUS_946.66` exactly once and checks all 921,600 bytes of
 that executable against the supported USA revision's SHA-256. `title.json` is the single revision
-authority consumed by Python and the C++ admission code. The native probe hashes its own bounded
-byte buffer with Lucent, then gives those same bytes to psxport's validated executable mapper.
+authority consumed by Python and by the catalog's `TitleIdentity`, which the framework checks (size,
+header words, SHA-256) before it maps the bytes.
 
 Run the independent verification command with a resolved psxport checkout and its documented native
 dependencies. This uses Clang, Ninja, and the frozen Python interpreter:
@@ -37,18 +38,17 @@ per-port framework pin; a bare clone or CI gets psxport `main` — before invoki
 setup action and the same verifier. Its synthetic admission/style/execution checks require no game files. Dependency checkouts
 and compiler outputs remain under `build/`; hosted success is distinct from real-title qualification.
 
-The boot observation takes an extracted executable, cycles per turn, and maximum turns:
+A bounded headless boot runs the built product with a step cap:
 
 ```sh
-build/maintainer/c12_boot_probe scratch/c12-identity/SCUS_946.66 100000 3
+PSXPORT_NATIVE_FRAMES=600 build/maintainer/c12_port
 ```
 
-It reports every typed exit plus translated/guest/fallback counters. At a typed VSync boundary it
-observes the guest return address and resumes another bounded Lightrec turn. The probe steps the
-host display-field clock but does not present frames or open an audio stream. On the real image the
-startup CD reads complete through the guest's own registered ready callback, the
-title loads and executes its disc-resident module (`RELOCS/GT.LVB`) out of its RAM arena, and the
-guest runs its per-field loop and submits drawing primitives.
+The run-end report gives the executor counters, present intervals, audio queue and the title's
+field and VSync-boundary counts. On the real image the startup CD reads complete through the
+guest's own registered ready callback, the title loads and executes its disc-resident module
+(`RELOCS/GT.LVB`) out of its RAM arena, and the guest runs its per-field loop and submits drawing
+primitives. `c12_frame_driver` proves the field step over synthetic guests with no game files.
 First boot execution alone is not gameplay conformance. Intended enhancements and platform releases
 are listed separately in [project state](docs/project-state.md).
 

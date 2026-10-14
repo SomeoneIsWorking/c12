@@ -17,7 +17,6 @@ LOGGER = logging.getLogger("c12.launcher")
 EXTRACTED = ROOT / "scratch" / "c12-identity"
 DISCDUMP = ROOT / "build" / "maintainer" / "framework" / "tools" / "discdump"
 PRODUCT = ROOT / "build" / "maintainer" / "c12_port"
-BOOT_NAME_VARIABLE = "PSXPORT_C12_EXECUTABLE"
 
 
 class ProvisioningError(RuntimeError):
@@ -82,10 +81,9 @@ def main(argv: Sequence[str] | None = None) -> int:
         LOGGER.error("the C-12 product is not built: %s", PRODUCT)
         return 2
     environment = dict(os.environ)
-    environment[BOOT_NAME_VARIABLE] = str(executable)
     environment.setdefault(DISC_VARIABLE, str(config.disc))
     try:
-        return subprocess.run([str(PRODUCT)], env=environment, check=False).returncode
+        return subprocess.run([str(PRODUCT), str(executable)], env=environment, check=False).returncode
     except OSError as error:
         LOGGER.error("could not start the product: %s", error)
         return 2

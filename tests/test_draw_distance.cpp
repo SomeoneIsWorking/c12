@@ -6,7 +6,6 @@
 #include "enhancements.h"
 #include "fog_table.h"
 #include "game.h"
-#include "psx_exe_image.h"
 #include "title_facts.h"
 
 #include <array>
@@ -77,8 +76,7 @@ void fillRecords(Core &core, std::uint32_t count) {
 }
 
 void test_guest_buffers_stay_at_retail_size() {
-  psx::cpu::PsxExeImage image{};
-  C12Runtime runtime(image);
+  C12Runtime runtime;
   psxport_install_game(runtime);
   auto game = std::make_unique<Game>();
   Core &core = game->core;
@@ -107,8 +105,7 @@ void test_guest_buffers_stay_at_retail_size() {
 }
 
 void test_host_list_holds_more_cells_than_the_guest_window() {
-  psx::cpu::PsxExeImage image{};
-  C12Runtime runtime(image);
+  C12Runtime runtime;
   psxport_install_game(runtime);
   auto game = std::make_unique<Game>();
   Core &core = game->core;

@@ -1,19 +1,29 @@
 #include "c12_runtime.h"
 
+#include "c12_frame_driver.h"
 #include "cd_command_completion.h"
 #include "cell_collector.h"
 #include "cell_output.h"
 #include "enhancements.h"
+#include "executable_identity.h"
 #include "title_facts.h"
 #include "view_frustum.h"
 #include "world_mesh_pass.h"
 
+#include "core.h"
+#include "game.h"
+
+#include <lucent/log.h>
+
 namespace c12 {
 
-C12Runtime::C12Runtime(const psx::cpu::PsxExeImage &header) {
-  image_.residentText = header.physicalText;
-  image_.crt0Entry = header.entry;
-  image_.globalPointer = header.globalPointer;
+C12Runtime::C12Runtime() {
+  // The driver enters the guest at the executable's own entry; the framework applies no crt0.
+  image_.bootEntry = BootEntry::DriverOwned;
+  const std::uint32_t textPhysical = identity::kTextAddress & 0x1FFFFFFFu;
+  image_.residentText = {textPhysical, textPhysical + identity::kTextBytes};
+  image_.crt0Entry = identity::kEntry;
+  image_.globalPointer = identity::kGlobalPointer;
 }
 
 void *C12Runtime::createContext(Core &) {
@@ -34,6 +44,7 @@ void C12Runtime::registerOverrides(Game &game) {
   installCellCollectorOverride(game);
   installWorldMeshPassOverride(game);
 }
+
 void C12Runtime::bootInit(Core &) {
 }
 
@@ -73,6 +84,20 @@ bool C12Runtime::guestVramIsPicture(const Game &) const {
 
 const GuestWidescreenProjection *C12Runtime::guestWidescreenProjection() const {
   return &widescreenPolicy_;
+}
+
+std::unique_ptr<FrameDriver> C12Runtime::createFrameDriver(Game &game) {
+  return std::make_unique<C12FrameDriver>(game);
+}
+
+void C12Runtime::reportRun(Core &core) const {
+  const auto *driver =
+      core.game != nullptr ? dynamic_cast<const C12FrameDriver *>(core.game->frameDriver.get()) : nullptr;
+  if (driver == nullptr) {
+    return;
+  }
+  lucent::info(
+      "c12.fields", "presented {} field(s) across {} guest VSync boundar(ies)", driver->fields(), driver->boundaries());
 }
 
 } // namespace c12

@@ -1,11 +1,2 @@
 # re-harness cpp_policy sites this repository has not yet moved to an owner. The list only shrinks:
 # a site that no longer occurs fails the gate until its line is deleted.
-
-# Hand-written mains still outside the framework main; each goes when its title moves to psxport_add_product.
-game/entry/boot_probe.cpp:entry point:main
-game/entry/player_entry.cpp:entry point:main
-
-# Framework steps a title no longer spells out (TitleSession composes them); they go with c12::Machine.
-game/boot/machine.cpp:retired name:gte_bind
-game/boot/machine.cpp:retired name:mdec_bind
-game/boot/machine.cpp:retired name:spu_bind

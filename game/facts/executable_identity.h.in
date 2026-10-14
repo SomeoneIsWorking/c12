@@ -1,0 +1,21 @@
+#pragma once
+
+#include <cstddef>
+#include <cstdint>
+#include <string_view>
+
+// Generated from title.json.
+namespace c12::identity {
+
+inline constexpr std::string_view kSerial = "@C12_EXECUTABLE@";
+inline constexpr std::string_view kExecutableSha256 = "@C12_SHA256@";
+inline constexpr std::size_t kExecutableBytes = @C12_SIZE@u;
+inline constexpr std::string_view kDiscExecutablePath = "@C12_DISC_EXECUTABLE@";
+inline constexpr std::uint32_t kEntry = @C12_EXECUTABLE_ENTRY@u;
+inline constexpr std::uint32_t kGlobalPointer = @C12_EXECUTABLE_GP@u;
+inline constexpr std::uint32_t kTextAddress = @C12_EXECUTABLE_TEXT@u;
+inline constexpr std::uint32_t kTextBytes = @C12_EXECUTABLE_TEXT_SIZE@u;
+inline constexpr std::uint32_t kStackAddress = @C12_EXECUTABLE_STACK@u;
+inline constexpr std::uint32_t kStackOffset = @C12_EXECUTABLE_STACK_OFFSET@u;
+
+} // namespace c12::identity
