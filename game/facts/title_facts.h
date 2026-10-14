@@ -1,13 +1,9 @@
-// title_facts.h — measured guest facts C-12 publishes to psxport.
-//
-// Evidence in docs/re-frontier.md and docs/project-state.md.
+// title_facts.h — measured guest addresses C-12's own code reads; evidence in docs/re-frontier.md.
 
 #pragma once
 
-#include "guest_cd_stream_callback_layout.h"
+#include "guest_address_range.h"
 #include "guest_packet_pool_windows.h"
-#include "guest_program_image.h"
-#include "platform_hle.h"
 
 #include <cstdint>
 
@@ -30,42 +26,17 @@ inline constexpr std::uint8_t kCdReadyStatus = 1u;
 // Command-status callback slot; the guest installs FUN_80057f7c, which sets 0x800F0778 and decrements 0x800F0758.
 inline constexpr std::uint32_t kCdCommandStatusCallbackSlotAddress = 0x800EEEB8u;
 
-// VSync and CD command entries only, as one-instruction windows. CdReadySync is a native override instead.
-inline constexpr PlatformHlePlan kPlatformHlePlan = [] {
-  PlatformHlePlan plan{};
-  plan.vsyncAddress = kVSyncAddress;
-  plan.vsyncQueryCounterAddress = kVSyncQueryCounterAddress;
-  plan.windowLo[0] = kVSyncAddress;
-  plan.windowHi[0] = kVSyncAddress + 4u;
-  plan.cdCommandAddress = kCdCommandAddress;
-  plan.windowLo[1] = kCdCommandAddress;
-  plan.windowHi[1] = kCdCommandAddress + 4u;
-  plan.stockCdWorkArea = {kCdLastPositionAddress, kCdLastModeAddress};
-  return plan;
-}();
-
 // InitHeap base to stack base; the loader places relocatable modules here (GT.LVB at 0x8011F9BC).
 inline constexpr GuestAddressRange kGuestCodeModuleWindow = {0x00105E40u, 0x001FFFF0u};
-
-// Sectors are read through stock libcd; completion comes from the INT1 handler.
-inline constexpr GuestCdStreamCallbackLayout kCdStreamCallbackLayout = [] {
-  GuestCdStreamCallbackLayout layout{};
-  layout.readyCallbackPointer = kCdReadyCallbackSlotAddress;
-  layout.owner = GuestCdStreamCallbackLayout::DeliveryOwner::GuestInterrupt;
-  layout.readyStatus = kCdReadyStatus;
-  return layout;
-}();
 
 // One window holding both parity OTs (0x801AFF98, 0x801B0F98) and their nodes from 0x800E3DE4.
 inline constexpr std::uint32_t kPacketPoolLow = 0x800E3DE4u;
 inline constexpr std::uint32_t kPacketPoolHigh = 0x801B0F9Cu;
-inline constexpr GuestPacketPoolWindows kPacketPoolWindows = [] {
-  GuestPacketPoolWindows windows{};
-  windows.representation = GuestPacketPoolWindows::Representation::SingleWindow;
-  windows.base = kPacketPoolLow;
-  windows.end = kPacketPoolHigh;
-  return windows;
-}();
+inline constexpr psx::gpu::GuestPacketPoolWindows kPacketPoolWindows{
+    .representation = psx::gpu::GuestPacketPoolWindows::Representation::SingleWindow,
+    .base = kPacketPoolLow,
+    .end = kPacketPoolHigh,
+};
 
 // World view frustum corner builder, its table (four 8-byte s16 x, y, z entries) and the zone words it reads.
 inline constexpr std::uint32_t kViewFrustumBuilderAddress = 0x800660D8u;

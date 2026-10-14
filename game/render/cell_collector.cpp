@@ -1,7 +1,10 @@
 #include "cell_collector.h"
 
+#include "c12_session.h"
+
 #include "core.h"
 #include "game.h"
+#include "gte.h"
 #include "gte_control.h"
 #include "gte_registers.h"
 #include "guest_call.h"
@@ -183,7 +186,7 @@ void CellCollector::measurePitch() {
 
 void CellCollector::projectCorners() {
   for (std::uint32_t word = 0; word < kMatrixRotationWords; ++word) {
-    gte_write_ctrl(psx::gte::kRotation + word, core_.mem_r32(matrix_ + 4 * word));
+    core_.gte().writeControl(psx::gte::kRotation + word, core_.mem_r32(matrix_ + 4 * word));
   }
   std::int32_t highestY = std::numeric_limits<std::int32_t>::min();
   std::int32_t lowestY = std::numeric_limits<std::int32_t>::max();
@@ -191,16 +194,19 @@ void CellCollector::projectCorners() {
   lowest_ = 0;
   for (std::uint32_t k = 0; k < kFrustumCornerCount; ++k) {
     const std::uint32_t entry = kViewFrustumCornerTableAddress + k * kFrustumCornerStride;
-    gte_write_data(psx::gte::kVxy0, core_.mem_r32(entry));
-    gte_write_data(psx::gte::kVz0, core_.mem_r32(entry + 4));
-    gte_op(&core_, psx::gte::kMvmvaRtV0);
+    core_.gte().writeData(psx::gte::kVxy0, core_.mem_r32(entry));
+    core_.gte().writeData(psx::gte::kVz0, core_.mem_r32(entry + 4));
+    core_.gte().execute(psx::gte::kMvmvaRtV0);
     Corner &corner = corners_[k];
     corner.x = wrapAdd(
-        static_cast<std::int32_t>(distance_.scale(static_cast<std::int32_t>(gte_read_data(psx::gte::kMac1)))), camX_);
+        static_cast<std::int32_t>(distance_.scale(static_cast<std::int32_t>(core_.gte().readData(psx::gte::kMac1)))),
+        camX_);
     corner.y = wrapAdd(
-        static_cast<std::int32_t>(distance_.scale(static_cast<std::int32_t>(gte_read_data(psx::gte::kMac2)))), camY_);
+        static_cast<std::int32_t>(distance_.scale(static_cast<std::int32_t>(core_.gte().readData(psx::gte::kMac2)))),
+        camY_);
     corner.z = wrapAdd(
-        static_cast<std::int32_t>(distance_.scale(static_cast<std::int32_t>(gte_read_data(psx::gte::kMac3)))), camZ_);
+        static_cast<std::int32_t>(distance_.scale(static_cast<std::int32_t>(core_.gte().readData(psx::gte::kMac3)))),
+        camZ_);
     if (highestY < corner.y) {
       highestY = corner.y;
       highest_ = k;
@@ -211,7 +217,7 @@ void CellCollector::projectCorners() {
     }
   }
   for (std::uint32_t word = 0; word < kMatrixRotationWords; ++word) {
-    gte_write_ctrl(psx::gte::kRotation + word, core_.mem_r32(frame_ + kSavedRotationOffset + 4 * word));
+    core_.gte().writeControl(psx::gte::kRotation + word, core_.mem_r32(frame_ + kSavedRotationOffset + 4 * word));
   }
 }
 
@@ -237,10 +243,10 @@ void CellCollector::clipCornersToGround() {
     if (distance >= limit || x > kGroundReach || x < -kGroundReach || z > kGroundReach || z < -kGroundReach) {
       continue;
     }
-    gte_write_data(psx::gte::kVxy0, pack(halfword(x), halfword(height)));
-    gte_write_data(psx::gte::kVz0, halfword(z));
-    gte_op(&core_, psx::gte::kMvmvaRtV0);
-    if (static_cast<std::int32_t>(gte_read_data(psx::gte::kMac3)) >= 0) {
+    core_.gte().writeData(psx::gte::kVxy0, pack(halfword(x), halfword(height)));
+    core_.gte().writeData(psx::gte::kVz0, halfword(z));
+    core_.gte().execute(psx::gte::kMvmvaRtV0);
+    if (static_cast<std::int32_t>(core_.gte().readData(psx::gte::kMac3)) >= 0) {
       corner.x = wrapAdd(x, camX_);
       corner.y = plane_;
       corner.z = wrapAdd(z, camZ_);
@@ -300,7 +306,7 @@ void CellCollector::rasterizeFootprint() {
     lowZ = std::min(lowZ, pz);
     highZ = std::max(highZ, pz);
   }
-  gte_write_ctrl(psx::gte::kH, static_cast<std::uint32_t>(core_.mem_r16s(kZoneProjectionPlaneAddress)));
+  core_.gte().writeControl(psx::gte::kH, static_cast<std::uint32_t>(core_.mem_r16s(kZoneProjectionPlaneAddress)));
   firstRow_ = static_cast<std::int32_t>(std::max<std::int64_t>(lowZ >> kCellShift, 0));
   lastRow_ = static_cast<std::int32_t>(std::min<std::int64_t>(highZ >> kCellShift, kLastRow));
 }
@@ -320,13 +326,13 @@ void CellCollector::prepareProjection() {
     core_.mem_w32(kProjectionTranslation + 4 * word, 0);
   }
   for (std::uint32_t word = 0; word < kMatrixRotationWords; ++word) {
-    gte_write_ctrl(psx::gte::kRotation + word, core_.mem_r32(kProjectionMatrix + 4 * word));
+    core_.gte().writeControl(psx::gte::kRotation + word, core_.mem_r32(kProjectionMatrix + 4 * word));
   }
   for (std::uint32_t word = 0; word < 3; ++word) {
-    gte_write_ctrl(psx::gte::kTranslationX + word, 0);
+    core_.gte().writeControl(psx::gte::kTranslationX + word, 0);
   }
-  gte_write_ctrl(psx::gte::kOfx, kCellProjectionOffsetX);
-  gte_write_ctrl(psx::gte::kOfy, kCellProjectionOffsetY);
+  core_.gte().writeControl(psx::gte::kOfx, kCellProjectionOffsetX);
+  core_.gte().writeControl(psx::gte::kOfy, kCellProjectionOffsetY);
 }
 
 void CellCollector::scanRows() {
@@ -386,20 +392,20 @@ bool CellCollector::testable(const Box &box, std::int32_t y0, std::int32_t y1) c
 }
 
 void CellCollector::projectBox(std::uint16_t y, const Box &box) {
-  gte_write_data(psx::gte::kVxy0, pack(halfword(box.x0), y));
-  gte_write_data(psx::gte::kVz0, halfword(box.z0));
-  gte_write_data(psx::gte::kVxy1, pack(halfword(box.x0), y));
-  gte_write_data(psx::gte::kVz1, halfword(box.z1));
-  gte_write_data(psx::gte::kVxy2, pack(halfword(box.x1), y));
-  gte_write_data(psx::gte::kVz2, halfword(box.z1));
-  gte_op(&core_, psx::gte::kRtpt);
+  core_.gte().writeData(psx::gte::kVxy0, pack(halfword(box.x0), y));
+  core_.gte().writeData(psx::gte::kVz0, halfword(box.z0));
+  core_.gte().writeData(psx::gte::kVxy1, pack(halfword(box.x0), y));
+  core_.gte().writeData(psx::gte::kVz1, halfword(box.z1));
+  core_.gte().writeData(psx::gte::kVxy2, pack(halfword(box.x1), y));
+  core_.gte().writeData(psx::gte::kVz2, halfword(box.z1));
+  core_.gte().execute(psx::gte::kRtpt);
 }
 
 std::uint32_t CellCollector::projectFourth(std::uint16_t y, const Box &box) {
-  gte_write_data(psx::gte::kVxy0, pack(halfword(box.x1), y));
-  gte_write_data(psx::gte::kVz0, halfword(box.z0));
-  gte_op(&core_, psx::gte::kRtps);
-  return gte_read_data(psx::gte::kSxy2);
+  core_.gte().writeData(psx::gte::kVxy0, pack(halfword(box.x1), y));
+  core_.gte().writeData(psx::gte::kVz0, halfword(box.z0));
+  core_.gte().execute(psx::gte::kRtps);
+  return core_.gte().readData(psx::gte::kSxy2);
 }
 
 bool CellCollector::boxVisible(std::uint32_t record, const Box &box) {
@@ -430,8 +436,8 @@ bool CellCollector::pitchedBoxVisible(std::uint32_t record, const Box &box) {
   }
   const std::uint16_t relative = halfword(y - camY_);
   projectBox(relative, box);
-  const std::uint32_t outside =
-      gte_read_data(psx::gte::kSxy0) & gte_read_data(psx::gte::kSxy1) & gte_read_data(psx::gte::kSxy2) & kOutsideWindow;
+  const std::uint32_t outside = core_.gte().readData(psx::gte::kSxy0) & core_.gte().readData(psx::gte::kSxy1) &
+                                core_.gte().readData(psx::gte::kSxy2) & kOutsideWindow;
   if (outside == 0) {
     return true;
   }
@@ -445,18 +451,18 @@ bool CellCollector::levelBoxVisible(std::uint32_t record, const Box &box) {
     return true;
   }
   projectBox(halfword(top), box);
-  const std::uint32_t topA = gte_read_data(psx::gte::kSxy0);
-  const std::uint32_t topB = gte_read_data(psx::gte::kSxy1);
-  const std::uint32_t topC = gte_read_data(psx::gte::kSxy2);
+  const std::uint32_t topA = core_.gte().readData(psx::gte::kSxy0);
+  const std::uint32_t topB = core_.gte().readData(psx::gte::kSxy1);
+  const std::uint32_t topC = core_.gte().readData(psx::gte::kSxy2);
   const std::uint32_t topD = projectFourth(halfword(top), box);
   const std::uint32_t topAnd = topA & topB & topC & topD;
   if ((topAnd & kOutsideWindow) == 0) {
     return true;
   }
   projectBox(halfword(bottom), box);
-  const std::uint32_t bottomA = gte_read_data(psx::gte::kSxy0);
-  const std::uint32_t bottomB = gte_read_data(psx::gte::kSxy1);
-  const std::uint32_t bottomC = gte_read_data(psx::gte::kSxy2);
+  const std::uint32_t bottomA = core_.gte().readData(psx::gte::kSxy0);
+  const std::uint32_t bottomB = core_.gte().readData(psx::gte::kSxy1);
+  const std::uint32_t bottomC = core_.gte().readData(psx::gte::kSxy2);
   const std::uint32_t bottomD = projectFourth(halfword(bottom), box);
   const std::uint32_t shared = topAnd & bottomA & bottomB & bottomC & bottomD;
   const std::uint32_t every = topA | topB | topC | topD | bottomA | bottomB | bottomC | bottomD;
@@ -514,8 +520,8 @@ void CellCollector::finish() {
   output_.finish();
   const std::uint32_t camera = core_.mem_r32(kCameraPointerAddress);
   const std::uint32_t offsetX = core_.mem_r16(camera + kCameraOffsetX);
-  gte_write_ctrl(psx::gte::kOfx, offsetX << 16);
-  gte_write_ctrl(psx::gte::kOfy, core_.mem_r16(camera + kCameraOffsetY) << 16);
+  core_.gte().writeControl(psx::gte::kOfx, offsetX << 16);
+  core_.gte().writeControl(psx::gte::kOfy, core_.mem_r16(camera + kCameraOffsetY) << 16);
   core_.r[kV0] = output_.count();
   core_.r[kV1] = offsetX;
 }

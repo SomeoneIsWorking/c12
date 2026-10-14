@@ -1,11 +1,10 @@
 #include "c12_runtime.h"
 
 #include "c12_frame_driver.h"
+#include "c12_session.h"
 #include "cd_command_completion.h"
 #include "cell_collector.h"
-#include "cell_output.h"
 #include "enhancements.h"
-#include "executable_identity.h"
 #include "title_facts.h"
 #include "view_frustum.h"
 #include "world_mesh_pass.h"
@@ -17,63 +16,45 @@
 
 namespace c12 {
 
-C12Runtime::C12Runtime() {
-  // The driver enters the guest at the executable's own entry; the framework applies no crt0.
-  image_.bootEntry = BootEntry::DriverOwned;
-  const std::uint32_t textPhysical = identity::kTextAddress & 0x1FFFFFFFu;
-  image_.residentText = {textPhysical, textPhysical + identity::kTextBytes};
-  image_.crt0Entry = identity::kEntry;
-  image_.globalPointer = identity::kGlobalPointer;
-}
-
-void *C12Runtime::createContext(Core &) {
-  return new WorldVisibility();
-}
-
-void C12Runtime::destroyContext(void *context) {
-  delete static_cast<WorldVisibility *>(context);
-}
-
-std::span<const TitleIntSetting> C12Runtime::titleIntSettings() const {
-  return c12::titleIntSettings();
+// Only CD_cw is stock; CdReadySync is the title's own completion owner (cd_command_completion).
+C12Runtime::C12Runtime()
+    : vsync_(kVSyncAddress, kVSyncQueryCounterAddress),
+      libcd_({.command = kCdCommandAddress},
+             {.lastPositionAddress = kCdLastPositionAddress, .lastModeAddress = kCdLastModeAddress},
+             kCdReadyCallbackSlotAddress,
+             {.status = kCdReadyStatus}) {
 }
 
 void C12Runtime::registerOverrides(Game &game) {
+  vsync_.bind(game);
+  libcd_.bind(game);
   installTitleOverrides(game);
   installViewFrustumOverride(game);
   installCellCollectorOverride(game);
   installWorldMeshPassOverride(game);
 }
 
-void C12Runtime::bootInit(Core &) {
+std::unique_ptr<psx::game::TitleSessionState> C12Runtime::createSession(Game &) {
+  return std::make_unique<C12Session>();
 }
 
-const GuestProgramImage *C12Runtime::guestProgramImage() const {
-  return &image_;
-}
-
-const PlatformHlePlan *C12Runtime::platformHlePlan() const {
-  return &kPlatformHlePlan;
-}
-
-const GuestCdStreamCallbackLayout *C12Runtime::guestCdStreamCallbackLayout() const {
-  return &kCdStreamCallbackLayout;
+std::unique_ptr<psx::game::FrameDriver> C12Runtime::createFrameDriver(Game &game) {
+  return std::make_unique<C12FrameDriver>(game);
 }
 
 GuestAddressRange C12Runtime::guestCodeModuleWindow() const {
   return kGuestCodeModuleWindow;
 }
 
-const GuestPacketPoolWindows *C12Runtime::guestPacketPoolWindows() const {
-  return &kPacketPoolWindows;
+std::optional<psx::gpu::PacketPoolExtent> C12Runtime::packetPool(Core &core) const {
+  return kPacketPoolWindows.extent(core);
 }
 
 RenderCapabilities C12Runtime::renderCapabilities() const {
-  // The picture is the guest's GP0 output replayed from the frame record; no native producers, no interpolation yet.
+  // The picture is the guest's GP0 output replayed from the frame record; no native producers.
   return RenderCapabilities{
       .defaultPath = RenderPath::Record,
       .nativeRenderPath = false,
-      .temporalInterpolation = false,
   };
 }
 
@@ -86,10 +67,6 @@ const GuestWidescreenProjection *C12Runtime::guestWidescreenProjection() const {
   return &widescreenPolicy_;
 }
 
-std::unique_ptr<FrameDriver> C12Runtime::createFrameDriver(Game &game) {
-  return std::make_unique<C12FrameDriver>(game);
-}
-
 void C12Runtime::reportRun(Core &core) const {
   const auto *driver =
       core.game != nullptr ? dynamic_cast<const C12FrameDriver *>(core.game->frameDriver.get()) : nullptr;
@@ -98,6 +75,10 @@ void C12Runtime::reportRun(Core &core) const {
   }
   lucent::info(
       "c12.fields", "presented {} field(s) across {} guest VSync boundar(ies)", driver->fields(), driver->boundaries());
+}
+
+std::span<const psx::game::TitleIntSetting> C12Runtime::titleIntSettings() const {
+  return c12::titleIntSettings();
 }
 
 } // namespace c12

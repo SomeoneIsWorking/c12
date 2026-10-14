@@ -12,6 +12,6 @@ psx::config::BoolVar &widescreenCvar();  // PSXPORT_C12_WIDESCREEN
 psx::config::IntVar &drawDistanceCvar(); // PSXPORT_C12_DRAW_DISTANCE: percent increase, 0 is retail
 
 // The integer settings the title offers in the settings menu.
-std::span<const TitleIntSetting> titleIntSettings();
+std::span<const psx::game::TitleIntSetting> titleIntSettings();
 
 } // namespace c12

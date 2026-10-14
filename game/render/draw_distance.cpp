@@ -1,6 +1,6 @@
 #include "draw_distance.h"
 
-#include "config_vars.h"
+#include "enhancement_gate.h"
 #include "enhancements.h"
 
 namespace c12 {

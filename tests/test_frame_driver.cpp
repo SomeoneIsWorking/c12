@@ -1,8 +1,8 @@
 // C12FrameDriver through the shipping runtime and FrameLoopShell, over synthetic guests written at the
 // executable's entry and calling the title's measured VSync address.
 
+#include "booted_game.h"
 #include "c12_frame_driver.h"
-#include "c12_runtime.h"
 #include "executable_identity.h"
 #include "title_facts.h"
 
@@ -14,7 +14,6 @@
 
 #include <array>
 #include <cstdint>
-#include <memory>
 #include <span>
 #include <stdexcept>
 
@@ -67,46 +66,32 @@ constexpr std::array<std::uint32_t, 3> kBreak{
 class DriverRun {
 public:
   explicit DriverRun(std::span<const std::uint32_t> program) {
-    psxport_install_game(runtime_);
-    game_ = std::make_unique<Game>();
-    Core &core = game_->core;
-    image_ = core.imageCatalog().activate("C-12 resident", runtime_.guestProgramImage()->residentText, 1u);
+    Core &core = booted_.core();
     for (std::uint32_t index = 0; index < program.size(); ++index) {
       core.mem_w32(kEntry + index * 4u, program[index]);
     }
     core.pc = kEntry;
-    runtime_.registerOverrides(*game_);
-    shell_.prepareProduct(*game_);
+    shell_.prepareProduct(booted_.game());
   }
-
-  ~DriverRun() {
-    game_->core.imageCatalog().deactivate(image_);
-  }
-
-  DriverRun(const DriverRun &) = delete;
-  DriverRun &operator=(const DriverRun &) = delete;
-  DriverRun(DriverRun &&) = delete;
-  DriverRun &operator=(DriverRun &&) = delete;
 
   // Steps once and requires exactly one presentation fence.
   void step(std::uint32_t frame) {
-    const std::uint64_t fence = game_->presentation.fence();
-    shell_.step(game_->core, frame);
-    require(game_->presentation.fence() == fence + 1u, "a C-12 step did not cross exactly one presentation fence");
+    Game &game = booted_.game();
+    const std::uint64_t fence = game.presentation.fence();
+    shell_.step(game.core, frame);
+    require(game.presentation.fence() == fence + 1u, "a C-12 step did not cross exactly one presentation fence");
   }
 
   Game &game() {
-    return *game_;
+    return booted_.game();
   }
   C12FrameDriver &driver() {
-    return dynamic_cast<C12FrameDriver &>(*game_->frameDriver);
+    return dynamic_cast<C12FrameDriver &>(*booted_.game().frameDriver);
   }
 
 private:
-  C12Runtime runtime_;
-  std::unique_ptr<Game> game_;
+  BootedGame booted_;
   psx::frame::FrameLoopShell shell_;
-  psx::cpu::ImageIdentity image_{};
 };
 
 void test_every_step_is_one_turn_one_boundary_and_one_fence() {

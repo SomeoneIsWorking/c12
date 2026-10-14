@@ -30,8 +30,9 @@ No further static product generation, build, or run is part of this chain.
 - status: re-verified
 - deps: runtime.recorded-boundary
 - evidence: The tracked emitter/bootstrap path and generated dispatcher are deleted; the ignored
-  generated corpus and static build tree are absent; the source-policy test rejects their return.
-- where: `CMakeLists.txt`, `tools/source_policy.py`, the `c12_source_policy` CTest
+  generated corpus and static build tree are absent; `c12_cpp_style` (re-harness `cpp_policy`) rejects
+  retired names, direct logging and environment reads.
+- where: `CMakeLists.txt`, the `c12_cpp_style` CTest
 - gap:
 - notes: CMake and the player launcher name the missing title field lifecycle/native presentation.
   There is no static compatibility product or interpreter-only player selector.
@@ -43,7 +44,8 @@ No further static product generation, build, or run is part of this chain.
 - evidence: `C12Runtime` publishes the recorded libetc VSync entry `0x800A1758`, its negative-query
   vs-count `0x800EEB98` (zeroed by VSync setup `0x800B0DF8`, incremented by the callback dispatcher
   `0x800B0E50`), the stock libcd command entry `0x800B4CA8`, and its guest work area
-  `0x800EEED0..D4` through the title-owned `PlatformHlePlan`. Three measured title facts joined it:
+  `0x800EEED0..D4`, now bound as psxport's `StockVSync` and `GuestInterruptLibcd` in
+  `C12Runtime::registerOverrides`. Three measured title facts joined it:
   the libcd `CdReadyCallback` slot `0x800EEEBC` (written by `FUN_800AC158`, read by
   `FUN_800AF7EC`/`FUN_800AF4A8`) with `GuestInterrupt` delivery and completion code 1; the RAM
   arena `0x80105E40..0x801FFFF0` its loader allocates relocatable modules in; the 2D packet pool

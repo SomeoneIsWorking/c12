@@ -77,8 +77,7 @@ void fillRecords(Core &core, std::uint32_t count) {
 
 void test_guest_buffers_stay_at_retail_size() {
   C12Runtime runtime;
-  psxport_install_game(runtime);
-  auto game = std::make_unique<Game>();
+  auto game = std::make_unique<Game>(runtime, psx::config::Config{});
   Core &core = game->core;
   fillRecords(core, 200);
   core.mem_w32(kVisibleCellListAddress + 4 * kRetailCellCapacity, 0xDEADBEEFu);
@@ -106,8 +105,7 @@ void test_guest_buffers_stay_at_retail_size() {
 
 void test_host_list_holds_more_cells_than_the_guest_window() {
   C12Runtime runtime;
-  psxport_install_game(runtime);
-  auto game = std::make_unique<Game>();
+  auto game = std::make_unique<Game>(runtime, psx::config::Config{});
   Core &core = game->core;
   fillRecords(core, 600);
   HostCellOutput extended;

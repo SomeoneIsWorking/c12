@@ -6,7 +6,6 @@
 #include "game.h"
 #include "guest_call.h"
 #include "native_dispatch.h"
-#include "r3000.h"
 #include "title_facts.h"
 
 #include <lucent/log.h>

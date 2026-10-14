@@ -52,5 +52,4 @@ primitives. `c12_frame_driver` proves the field step over synthetic guests with 
 First boot execution alone is not gameplay conformance. Intended enhancements and platform releases
 are listed separately in [project state](docs/project-state.md).
 
-`c12_source_policy` rejects the retired offline translator, generated corpus, static dispatcher, and
-their source markers; `c12_cpp_style` is the shared formatter check.
+`c12_cpp_style` is the shared formatter, clang-tidy and ownership-policy check.

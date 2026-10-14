@@ -99,7 +99,4 @@ private:
   long percent_ = -1;
 };
 
-// The world visibility of this core, created with its game context.
-WorldVisibility &worldVisibility(Core &core);
-
 } // namespace c12

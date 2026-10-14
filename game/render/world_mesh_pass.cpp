@@ -1,10 +1,13 @@
 #include "world_mesh_pass.h"
 
+#include "c12_session.h"
 #include "cell_output.h"
 #include "core.h"
 #include "draw_distance.h"
 #include "fog_table.h"
 #include "game.h"
+#include "gte.h"
+#include "gte_registers.h"
 #include "guest_widescreen_projection.h"
 #include "native_dispatch.h"
 #include "title_facts.h"
@@ -68,33 +71,6 @@ constexpr std::uint32_t kPolyDepthFirst = 0x4;
 constexpr std::uint32_t kPolyDepthLast = 0x8;
 constexpr std::uint32_t kPolySemiTransparent = 0x10;
 constexpr std::uint32_t kHeaderPaged = 0x1;
-
-// GTE data registers and operations.
-constexpr std::uint32_t kGteVxy0 = 0;
-constexpr std::uint32_t kGteVz0 = 1;
-constexpr std::uint32_t kGteRgbc = 6;
-constexpr std::uint32_t kGteOtz = 7;
-constexpr std::uint32_t kGteIr0 = 8;
-constexpr std::uint32_t kGteIr1 = 9;
-constexpr std::uint32_t kGteIr2 = 10;
-constexpr std::uint32_t kGteSxy0 = 12;
-constexpr std::uint32_t kGteSxy1 = 13;
-constexpr std::uint32_t kGteSxy2 = 14;
-constexpr std::uint32_t kGteSz0 = 16;
-constexpr std::uint32_t kGteSz1 = 17;
-constexpr std::uint32_t kGteSz2 = 18;
-constexpr std::uint32_t kGteSz3 = 19;
-constexpr std::uint32_t kGteRgb2 = 22;
-constexpr std::uint32_t kGteMac0 = 24;
-constexpr std::uint32_t kGteIrgb = 28;
-constexpr std::uint32_t kGteFarColor = 21;
-constexpr std::uint32_t kRtps = 0x4A180001u;
-constexpr std::uint32_t kRtpt = 0x4A280030u;
-constexpr std::uint32_t kNclip = 0x4B400006u;
-constexpr std::uint32_t kAvsz3 = 0x4B58002Du;
-constexpr std::uint32_t kAvsz4 = 0x4B68002Eu;
-constexpr std::uint32_t kDpcl = 0x4A680029u;
-constexpr std::uint32_t kIntpl = 0x4A980011u;
 
 constexpr std::uint32_t kInitialRgbc = 0x00F8F8F8u;
 constexpr std::int32_t kMinimumDepth = 4;
@@ -238,7 +214,7 @@ void WorldMeshPass::saveCalleeRegisters() {
 
 void WorldMeshPass::run(std::uint32_t level) {
   saveCalleeRegisters();
-  gte_write_data(kGteRgbc, kInitialRgbc);
+  core_.gte().writeData(psx::gte::kRgbc, kInitialRgbc);
   WorldVisibility &visibility = worldVisibility(core_);
   if (visibility.active()) {
     hostCells_ = visibility.cells();
@@ -349,10 +325,10 @@ Step WorldMeshPass::projectPolygon() {
   for (std::uint32_t i = 0; i < 3; ++i) {
     work_[i].model = core_.mem_r32(corner[i]);
     work_[i].depthUv = core_.mem_r32(corner[i] + 4);
-    gte_write_data(kGteVz0 + 2 * i, work_[i].depthUv);
-    gte_write_data(kGteVxy0 + 2 * i, work_[i].model);
+    core_.gte().writeData(psx::gte::kVz0 + 2 * i, work_[i].depthUv);
+    core_.gte().writeData(psx::gte::kVxy0 + 2 * i, work_[i].model);
   }
-  gte_op(&core_, kRtpt);
+  core_.gte().execute(psx::gte::kRtpt);
   const std::uint32_t attributeIndex = core_.mem_r16(poly_ + 8);
   for (std::uint32_t i = 0; i < 3; ++i) {
     shadeIndex_[i] = static_cast<std::uint16_t>(work_[i].depthUv >> 16);
@@ -364,22 +340,22 @@ Step WorldMeshPass::projectPolygon() {
     const std::uint32_t fourth = verts_ + ((wordB >> 16) << 3);
     work_[3].model = core_.mem_r32(fourth);
     work_[3].depthUv = core_.mem_r32(fourth + 4);
-    gte_op(&core_, kNclip);
+    core_.gte().execute(psx::gte::kNclip);
     shadeIndex_[3] = static_cast<std::uint16_t>(work_[3].depthUv >> 16);
-    gte_write_data(kGteVxy0, work_[3].model);
-    gte_write_data(kGteVz0, work_[3].depthUv);
-    const std::int32_t firstArea = static_cast<std::int32_t>(gte_read_data(kGteMac0));
-    setScratch(kSlotFirstScreen, gte_read_data(kGteSxy0));
-    gte_op(&core_, kRtps);
-    gte_op(&core_, kNclip);
-    const std::int32_t secondArea = static_cast<std::int32_t>(gte_read_data(kGteMac0));
+    core_.gte().writeData(psx::gte::kVxy0, work_[3].model);
+    core_.gte().writeData(psx::gte::kVz0, work_[3].depthUv);
+    const std::int32_t firstArea = static_cast<std::int32_t>(core_.gte().readData(psx::gte::kMac0));
+    setScratch(kSlotFirstScreen, core_.gte().readData(psx::gte::kSxy0));
+    core_.gte().execute(psx::gte::kRtps);
+    core_.gte().execute(psx::gte::kNclip);
+    const std::int32_t secondArea = static_cast<std::int32_t>(core_.gte().readData(psx::gte::kMac0));
     if (firstArea <= 0 && secondArea >= 0) {
       return Step::Reject;
     }
     area_ = wrapAbs(firstArea) + wrapAbs(secondArea);
   } else {
-    gte_op(&core_, kNclip);
-    area_ = static_cast<std::int32_t>(gte_read_data(kGteMac0));
+    core_.gte().execute(psx::gte::kNclip);
+    area_ = static_cast<std::int32_t>(core_.gte().readData(psx::gte::kMac0));
     if (area_ <= 0) {
       return Step::Reject;
     }
@@ -397,15 +373,15 @@ Step WorldMeshPass::projectPolygon() {
 }
 
 Step WorldMeshPass::rejectByDepth() {
-  const std::int32_t first = static_cast<std::int32_t>(gte_read_data(kGteSz1));
-  const std::int32_t second = static_cast<std::int32_t>(gte_read_data(kGteSz2));
+  const std::int32_t first = static_cast<std::int32_t>(core_.gte().readData(psx::gte::kSz1));
+  const std::int32_t second = static_cast<std::int32_t>(core_.gte().readData(psx::gte::kSz2));
   std::int32_t nearest = first;
   std::int32_t farthest = second;
   if (!(first < second)) {
     nearest = second;
     farthest = first;
   }
-  const std::int32_t third = static_cast<std::int32_t>(gte_read_data(kGteSz3));
+  const std::int32_t third = static_cast<std::int32_t>(core_.gte().readData(psx::gte::kSz3));
   if (third < nearest) {
     nearest = third;
   } else if (farthest < third) {
@@ -413,7 +389,7 @@ Step WorldMeshPass::rejectByDepth() {
   }
   std::int32_t depth = nearest;
   if (quad_) {
-    const std::int32_t zeroth = static_cast<std::int32_t>(gte_read_data(kGteSz0));
+    const std::int32_t zeroth = static_cast<std::int32_t>(core_.gte().readData(psx::gte::kSz0));
     if (zeroth < nearest) {
       depth = zeroth;
     } else if (farthest < zeroth) {
@@ -427,8 +403,8 @@ Step WorldMeshPass::rejectByDepth() {
   if (mode != kPolyDepthFirst) {
     depth = farthest;
     if (mode != kPolyDepthLast) {
-      gte_op(&core_, quad_ ? kAvsz4 : kAvsz3);
-      depth = static_cast<std::int32_t>(gte_read_data(kGteOtz));
+      core_.gte().execute(quad_ ? psx::gte::kAvsz4 : psx::gte::kAvsz3);
+      depth = static_cast<std::int32_t>(core_.gte().readData(psx::gte::kOtz));
     }
   }
   if (depth < kMinimumDepth) {
@@ -445,8 +421,9 @@ Step WorldMeshPass::rejectByDepth() {
 
 Step WorldMeshPass::rejectByScreen() {
   std::array<ScreenVertex, 4> vertices{};
-  const std::array<std::uint32_t, 3> projected = {
-      gte_read_data(kGteSxy0), gte_read_data(kGteSxy1), gte_read_data(kGteSxy2)};
+  const std::array<std::uint32_t, 3> projected = {core_.gte().readData(psx::gte::kSxy0),
+                                                  core_.gte().readData(psx::gte::kSxy1),
+                                                  core_.gte().readData(psx::gte::kSxy2)};
   std::size_t count = 0;
   for (const std::uint32_t xy : projected) {
     vertices[count++] = {static_cast<std::int16_t>(sx(xy)), static_cast<std::int16_t>(sy(xy))};
@@ -504,14 +481,20 @@ void WorldMeshPass::prepareAttributes() {
 
   const std::uint32_t first = scratch(kSlotFirstScreen);
   if (quad_) {
-    screen_ = {first, gte_read_data(kGteSxy0), gte_read_data(kGteSxy1), gte_read_data(kGteSxy2)};
+    screen_ = {first,
+               core_.gte().readData(psx::gte::kSxy0),
+               core_.gte().readData(psx::gte::kSxy1),
+               core_.gte().readData(psx::gte::kSxy2)};
     for (std::uint32_t i = 0; i < 4; ++i) {
-      setScratch(kSlotDepths + 4 * i, gte_read_data(kGteSz0 + i));
+      setScratch(kSlotDepths + 4 * i, core_.gte().readData(psx::gte::kSz0 + i));
     }
   } else {
-    screen_ = {gte_read_data(kGteSxy0), gte_read_data(kGteSxy1), gte_read_data(kGteSxy2), 0};
+    screen_ = {core_.gte().readData(psx::gte::kSxy0),
+               core_.gte().readData(psx::gte::kSxy1),
+               core_.gte().readData(psx::gte::kSxy2),
+               0};
     for (std::uint32_t i = 0; i < 3; ++i) {
-      setScratch(kSlotDepths + 4 * i, gte_read_data(kGteSz1 + i));
+      setScratch(kSlotDepths + 4 * i, core_.gte().readData(psx::gte::kSz1 + i));
     }
   }
   for (std::uint32_t i = 0; i < (quad_ ? 4u : 3u); ++i) {
@@ -550,10 +533,10 @@ void WorldMeshPass::shadeVertices() {
   const std::uint32_t count = quad_ ? 4u : 3u;
   for (std::uint32_t i = 0; i < count; ++i) {
     const std::uint32_t depth = scratch(kSlotDepths + 4 * i);
-    gte_write_data(kGteIrgb, shadeIndex_[i]);
-    gte_write_data(kGteIr0, fog_.shade(static_cast<std::uint32_t>(depth) >> 6));
-    gte_op(&core_, kDpcl);
-    colors_[i] = gte_read_data(kGteRgb2);
+    core_.gte().writeData(psx::gte::kIrgb, shadeIndex_[i]);
+    core_.gte().writeData(psx::gte::kIr0, fog_.shade(static_cast<std::uint32_t>(depth) >> 6));
+    core_.gte().execute(psx::gte::kDcpl);
+    colors_[i] = core_.gte().readData(psx::gte::kRgb2);
     work_[i].color = colors_[i];
   }
   std::uint32_t code = quad_ ? kQuadCode : kTriCode;
@@ -613,7 +596,7 @@ void WorldMeshPass::chooseSubdivision() {
 void WorldMeshPass::emitSubdivided() {
   chooseSubdivision();
   for (std::uint32_t i = 0; i < 3; ++i) {
-    setScratch(kSlotFarColor + 4 * i, gte_read_ctrl(kGteFarColor + i));
+    setScratch(kSlotFarColor + 4 * i, core_.gte().readControl(psx::gte::kFarRed + i));
   }
   std::uint32_t slotPtr = slots_;
   std::uint32_t pairPtr = pairs_;
@@ -622,7 +605,7 @@ void WorldMeshPass::emitSubdivided() {
     std::uint16_t uv = 0;
     if (index < (storedVertices_ >> 1)) {
       vertex = work_[index];
-      gte_write_data(kGteSxy2, vertex.screen);
+      core_.gte().writeData(psx::gte::kSxy2, vertex.screen);
       uv = static_cast<std::uint16_t>(vertex.depthUv >> 16);
     } else {
       uv = buildSubdivisionVertex(index, pairPtr, vertex);
@@ -631,7 +614,7 @@ void WorldMeshPass::emitSubdivided() {
     slotPtr += 0xC;
   }
   for (std::uint32_t i = 0; i < 3; ++i) {
-    gte_write_ctrl(kGteFarColor + i, scratch(kSlotFarColor + 4 * i));
+    core_.gte().writeControl(psx::gte::kFarRed + i, scratch(kSlotFarColor + 4 * i));
   }
   linkSubdivided();
 }
@@ -651,9 +634,10 @@ std::uint16_t WorldMeshPass::buildSubdivisionVertex(std::uint32_t index, std::ui
   const std::int32_t x = (static_cast<std::int16_t>(a.model) + static_cast<std::int16_t>(b.model)) >> 1;
   const std::int32_t y = (static_cast<std::int16_t>(a.model >> 16) + static_cast<std::int16_t>(b.model >> 16)) >> 1;
   const std::int32_t z = (static_cast<std::int16_t>(a.depthUv) + static_cast<std::int16_t>(b.depthUv)) >> 1;
-  gte_write_data(kGteVxy0, (static_cast<std::uint32_t>(x) & 0xFFFFu) | (static_cast<std::uint32_t>(y) << 16));
-  gte_write_data(kGteVz0, static_cast<std::uint32_t>(z));
-  gte_op(&core_, kRtps);
+  core_.gte().writeData(psx::gte::kVxy0,
+                        (static_cast<std::uint32_t>(x) & 0xFFFFu) | (static_cast<std::uint32_t>(y) << 16));
+  core_.gte().writeData(psx::gte::kVz0, static_cast<std::uint32_t>(z));
+  core_.gte().execute(psx::gte::kRtps);
 
   std::uint32_t color = 0;
   for (std::uint32_t byte = 0; byte < 3; ++byte) {
@@ -669,22 +653,22 @@ std::uint16_t WorldMeshPass::buildSubdivisionVertex(std::uint32_t index, std::ui
     const std::int32_t sx0 = (static_cast<std::int16_t>(a.screen) + static_cast<std::int16_t>(b.screen)) >> 1;
     const std::int32_t sy0 =
         (static_cast<std::int16_t>(a.screen >> 16) + static_cast<std::int16_t>(b.screen >> 16)) >> 1;
-    const std::uint32_t projected = gte_read_data(kGteSxy2);
-    gte_write_data(kGteIr0, static_cast<std::uint32_t>(area_));
-    gte_write_data(kGteIr1, static_cast<std::uint32_t>(sx0));
-    gte_write_data(kGteIr2, static_cast<std::uint32_t>(sy0));
-    gte_write_ctrl(kGteFarColor, static_cast<std::uint32_t>(sx(projected)));
-    gte_write_ctrl(kGteFarColor + 1, static_cast<std::uint32_t>(sy(projected)));
-    gte_op(&core_, kIntpl);
-    const std::uint32_t blendedY = gte_read_data(kGteIr2);
-    const std::uint32_t blendedX = gte_read_data(kGteIr1);
-    gte_write_data(kGteSxy2, (blendedX & 0xFFFFu) | (blendedY << 16));
+    const std::uint32_t projected = core_.gte().readData(psx::gte::kSxy2);
+    core_.gte().writeData(psx::gte::kIr0, static_cast<std::uint32_t>(area_));
+    core_.gte().writeData(psx::gte::kIr1, static_cast<std::uint32_t>(sx0));
+    core_.gte().writeData(psx::gte::kIr2, static_cast<std::uint32_t>(sy0));
+    core_.gte().writeControl(psx::gte::kFarRed, static_cast<std::uint32_t>(sx(projected)));
+    core_.gte().writeControl(psx::gte::kFarRed + 1, static_cast<std::uint32_t>(sy(projected)));
+    core_.gte().execute(psx::gte::kIntpl);
+    const std::uint32_t blendedY = core_.gte().readData(psx::gte::kIr2);
+    const std::uint32_t blendedX = core_.gte().readData(psx::gte::kIr1);
+    core_.gte().writeData(psx::gte::kSxy2, (blendedX & 0xFFFFu) | (blendedY << 16));
   }
   if (fine_ != 0 && index < storedVertices_) {
     WorkVertex &stored = work_[index];
-    stored.model = gte_read_data(kGteVxy0);
-    stored.depthUv = (gte_read_data(kGteVz0) & 0xFFFFu) | (static_cast<std::uint32_t>(uv) << 16);
-    stored.screen = gte_read_data(kGteSxy2);
+    stored.model = core_.gte().readData(psx::gte::kVxy0);
+    stored.depthUv = (core_.gte().readData(psx::gte::kVz0) & 0xFFFFu) | (static_cast<std::uint32_t>(uv) << 16);
+    stored.screen = core_.gte().readData(psx::gte::kSxy2);
     stored.color = color;
   }
   vertex.color = color;
@@ -696,7 +680,7 @@ void WorldMeshPass::writeSubdivisionSlots(std::uint32_t slotPtr, const WorkVerte
   const auto write = [this, color, uv](std::uint32_t offset) {
     const std::uint32_t at = packet_ + offset;
     core_.mem_w32(at, color);
-    core_.mem_w32(at + 4, gte_read_data(kGteSxy2));
+    core_.mem_w32(at + 4, core_.gte().readData(psx::gte::kSxy2));
     core_.mem_w16(at + 8, uv);
   };
   const std::uint32_t first = core_.mem_r32(slotPtr);

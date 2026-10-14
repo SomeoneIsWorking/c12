@@ -13,7 +13,7 @@ namespace c12 {
 
 // One step is one display field: the logic-frame start (clock, producer census, pad), one bounded guest turn, the VSync
 // continuation, one presentation commit, then audio.
-class C12FrameDriver final : public FrameDriver {
+class C12FrameDriver final : public psx::game::FrameDriver {
 public:
   static constexpr std::uint64_t kCyclesPerTurn = 4'000'000;
 

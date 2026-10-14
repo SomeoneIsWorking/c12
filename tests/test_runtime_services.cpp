@@ -1,29 +1,35 @@
+#include "booted_game.h"
 #include "c12_frame_driver.h"
 #include "c12_runtime.h"
-#include "cd_control.h"
-#include "core.h"
+#include "c12_session.h"
 #include "enhancements.h"
-#include "executable_identity.h"
-#include "execution_control.h"
-#include "execution_exit.h"
-#include "game.h"
-#include "guest_cd_stream_callback_layout.h"
-#include "guest_code_module.h"
-#include "guest_packet_pool_windows.h"
-#include "guest_program_image.h"
-#include "platform_hle.h"
-#include "render_capabilities.h"
-#include "runtime_service_fixture.h"
 #include "title_facts.h"
 #include "view_frustum.h"
 #include "world_mesh_pass.h"
 
-#include <cstdint>
+#include "core.h"
+#include "execution_control.h"
+#include "execution_exit.h"
+#include "game.h"
+#include "guest_code_module.h"
+#include "platform_hle.h"
+#include "stock_libcd.h"
+
 #include <lucent/log.h>
+
+#include <array>
+#include <cstdint>
 #include <memory>
 #include <stdexcept>
 
 namespace c12::test {
+
+inline constexpr std::uint32_t kAfterVSync = 0x800A7F90u;
+inline constexpr std::uint32_t kParameterAddress = 0x80110000u;
+inline constexpr std::uint32_t kQueriedFields = 3u;
+inline constexpr std::uint8_t kSentinel = 0xA5u;
+inline constexpr std::uint8_t kMode = 0xE0u;
+inline constexpr std::array<std::uint8_t, 4> kPosition{0x00u, 0x02u, 0x16u, 0x01u};
 
 void require(bool condition, const char *message) {
   if (!condition) {
@@ -31,65 +37,32 @@ void require(bool condition, const char *message) {
   }
 }
 
-void harmlessHandler(Core *) {
-}
+void test_c12_binds_its_vsync_as_the_frame_boundary() {
+  BootedGame booted;
+  Game &game = booted.game();
+  require(game.platform_hle.hasNativeFrameLoopContract(), "C-12 has no native frame-loop contract");
+  require(game.platform_hle.vsyncAddress() == c12::kVSyncAddress, "C-12 bound the wrong VSync boundary");
+  const OverrideFn vsync = game.platform_hle.lookup(c12::kVSyncAddress);
+  require(vsync != nullptr, "C-12 VSync boundary was not bound");
+  require(game.platform_hle.lookup(c12::kVSyncAddress + 4u) == nullptr, "C-12 bound the instruction after VSync");
 
-void test_c12_declares_recorded_vsync_boundary() {
-  c12::C12Runtime runtime;
-  require(runtime.platformHlePlan() != nullptr, "C-12 did not publish a PlatformHlePlan");
-  require(runtime.platformHlePlan()->vsyncAddress == c12::kVSyncAddress,
-          "C-12 VSync address changed from the recorded boundary");
-  require(runtime.platformHlePlan()->vsyncQueryCounterAddress == c12::kVSyncQueryCounterAddress,
-          "C-12 dropped the measured libetc vs-count from its VSync query contract");
-  require(runtime.platformHlePlan()->windowLo[0] == c12::kVSyncAddress,
-          "C-12 VSync window does not begin at its entry");
-  require(runtime.platformHlePlan()->windowHi[0] == c12::kVSyncAddress + 4u,
-          "C-12 VSync window admits more than its measured entry");
-}
-
-void test_c12_installs_typed_frame_boundary_without_guest_override() {
-  c12::C12Runtime runtime;
-  psxport_install_game(runtime);
-  auto game = std::make_unique<Game>();
-
-  game->platform_hle.initBuiltins();
-  require(game->platform_hle.hasNativeFrameLoopContract(), "C-12 has no native frame-loop contract");
-  require(game->platform_hle.vsyncAddress() == c12::kVSyncAddress, "C-12 installed the wrong VSync boundary");
-  require(game->platform_hle.lookup(c12::kVSyncAddress) != nullptr, "C-12 VSync boundary was not installed");
-
-  game->core.r[31] = kAfterVSync;
-  game->platform_hle.lookup(c12::kVSyncAddress)(&game->core);
-  auto result = game->core.executionControl().consume();
-  if (!result.has_value()) {
-    throw std::runtime_error("C-12 VSync service did not request a typed exit");
-  }
-  require(result->reason == psx::cpu::ExecutionExitReason::FrameBoundary,
-          "C-12 VSync service requested the wrong exit");
-  require(game->core.r[31] == kAfterVSync, "C-12 VSync service changed the guest continuation register");
+  game.core.r[31] = kAfterVSync;
+  game.core.r[4] = 0;
+  vsync(&game.core);
+  const auto result = game.core.executionControl().consume();
+  require(result.has_value() && result->reason == psx::cpu::ExecutionExitReason::FrameBoundary,
+          "C-12 VSync did not request a frame-boundary exit");
+  require(game.core.r[31] == kAfterVSync, "C-12 VSync changed the guest continuation register");
 }
 
 void test_c12_vsync_negative_query_answers_guest_counter() {
-  c12::C12Runtime runtime;
-  psxport_install_game(runtime);
-  auto game = std::make_unique<Game>();
-  game->platform_hle.initBuiltins();
-  auto &core = game->core;
+  BootedGame booted;
+  Core &core = booted.core();
   core.mem_w32(c12::kVSyncQueryCounterAddress, kQueriedFields);
   core.r[4] = static_cast<std::uint32_t>(-1);
-  game->platform_hle.lookup(c12::kVSyncAddress)(&core);
+  booted.game().platform_hle.lookup(c12::kVSyncAddress)(&core);
   require(core.r[2] == kQueriedFields, "C-12 VSync query did not return the measured guest counter");
   require(!core.executionControl().consume().has_value(), "C-12 VSync query requested a frame-boundary exit");
-}
-
-void test_c12_does_not_admit_adjacent_guest_code() {
-  c12::C12Runtime runtime;
-  psxport_install_game(runtime);
-  auto game = std::make_unique<Game>();
-
-  require(!game->platform_hle.register_(c12::kVSyncAddress + 4u, harmlessHandler),
-          "C-12 admitted adjacent guest code as a hardware service");
-  require(game->platform_hle.lookup(c12::kVSyncAddress + 4u) == nullptr,
-          "C-12 exposed an adjacent guest address through the HLE table");
 }
 
 void command(Core &core, OverrideFn handler, std::uint8_t code) {
@@ -100,16 +73,13 @@ void command(Core &core, OverrideFn handler, std::uint8_t code) {
   require(core.r[2] == 0, "stock CD command did not complete successfully");
 }
 
-void test_c12_cd_work_area(GameRuntime &runtime, bool declared) {
-  psxport_install_game(runtime);
-  auto game = std::make_unique<Game>();
-  game->platform_hle.initBuiltins();
-  auto &core = game->core;
-  require(core.cfg == nullptr, "CD test entered the legacy configuration adapter");
-  auto handler = game->platform_hle.lookup(c12::kCdCommandAddress);
-  require(handler == cd_command_stock_sync, "C-12 command entry does not select the stock CD owner");
-  require(!game->platform_hle.register_(c12::kCdCommandAddress + 4u, harmlessHandler),
-          "CD admission includes the adjacent guest instruction");
+void test_c12_cd_command_publishes_its_work_area() {
+  BootedGame booted;
+  Game &game = booted.game();
+  Core &core = booted.core();
+  const OverrideFn handler = game.platform_hle.lookup(c12::kCdCommandAddress);
+  require(handler != nullptr, "C-12 did not bind its stock CD_cw");
+  require(game.platform_hle.lookup(c12::kCdCommandAddress + 4u) == nullptr, "C-12 bound the instruction after CD_cw");
   for (std::uint32_t index = 0; index < kPosition.size(); ++index) {
     core.mem_w8(kParameterAddress + index, kPosition[index]);
     core.mem_w8(c12::kCdLastPositionAddress + index, kSentinel);
@@ -118,19 +88,27 @@ void test_c12_cd_work_area(GameRuntime &runtime, bool declared) {
   core.mem_w8(c12::kCdLastModeAddress, kSentinel);
   core.mem_w8(c12::kCdLastModeAddress + 1u, kSentinel);
   command(core, handler, 0x02u);
-  require(game->cd.setloc_lba == 16, "Setloc did not update the native drive position");
+  require(game.cd.setloc_lba == 16, "Setloc did not update the native drive position");
   require(core.mem_r8(c12::kCdLastModeAddress) == kSentinel, "Setloc overwrote the mode byte");
   core.mem_w8(kParameterAddress, kMode);
   command(core, handler, 0x0Eu);
   for (std::uint32_t index = 0; index < kPosition.size(); ++index) {
-    require(core.mem_r8(c12::kCdLastPositionAddress + index) == (declared ? kPosition[index] : kSentinel),
-            "CD position publication did not respect the declared guest work area");
+    require(core.mem_r8(c12::kCdLastPositionAddress + index) == kPosition[index],
+            "CD position was not published to the measured work area");
   }
-  require(core.mem_r8(c12::kCdLastModeAddress) == (declared ? kMode : kSentinel),
-          "CD mode publication did not respect the declared guest work area");
+  require(core.mem_r8(c12::kCdLastModeAddress) == kMode, "CD mode was not published to the measured work area");
   require(core.mem_r8(c12::kCdLastPositionAddress - 1u) == kSentinel &&
               core.mem_r8(c12::kCdLastModeAddress + 1u) == kSentinel,
           "CD work area publication overwrote adjacent guest state");
+}
+
+void test_c12_cd_ready_is_delivered_by_its_interrupt() {
+  BootedGame booted;
+  const psx::cd::StockLibcd *libcd = booted.game().cd.stockLibrary();
+  require(libcd != nullptr, "C-12 bound no stock libcd");
+  require(libcd->readySlot() == c12::kCdReadyCallbackSlotAddress,
+          "C-12 bound a ready-callback slot other than its measured libcd word");
+  require(libcd->deliversOnInterrupt(), "C-12 handed CD completion to the host pump instead of its INT1 service");
 }
 
 void test_c12_declares_the_record_path_without_producers() {
@@ -139,79 +117,50 @@ void test_c12_declares_the_record_path_without_producers() {
   require(capabilities.defaultPath == RenderPath::Record, "C-12 does not default to the record path");
   require(!capabilities.nativeRenderPath && !capabilities.supports(RenderPath::Native),
           "C-12 declared a native render path it has no producers for");
-  require(!capabilities.temporalInterpolation, "C-12 declared an interpolation product it does not own");
-  require(capabilities.supports(RenderPath::Record) && capabilities.supports(RenderPath::Gte),
-          "C-12 dropped the record or guest-geometry path");
-  require(render_path_resolve(RenderPath::Native, capabilities) == RenderPath::Record,
-          "a native request on C-12 did not resolve to its record path");
-}
-
-void test_c12_game_installs_the_declared_render_path() {
-  c12::C12Runtime runtime;
-  psxport_install_game(runtime);
-  auto game = std::make_unique<Game>();
-  require(game->core.rsub.mode.path() == RenderPath::Record,
+  require(!runtime.interpolates(), "C-12 declared an interpolation product it does not own");
+  BootedGame booted;
+  require(booted.core().rsub.mode.path() == RenderPath::Record,
           "the C-12 Game did not install its declared record render path");
 }
 
-void test_c12_boot_entry_is_the_drivers() {
-  c12::C12Runtime runtime;
-  const GuestProgramImage *image = runtime.guestProgramImage();
-  require(image != nullptr && image->bootEntry == BootEntry::DriverOwned,
-          "C-12 asked the framework to apply a crt0 its frame driver does not need");
-  require(image->residentText.begin == (c12::identity::kTextAddress & 0x1FFFFFFFu) &&
-              image->residentText.end - image->residentText.begin == c12::identity::kTextBytes,
-          "C-12's resident text is not the executable's text extent");
-  psxport_install_game(runtime);
-  auto game = std::make_unique<Game>();
-  require(dynamic_cast<c12::C12FrameDriver *>(runtime.createFrameDriver(*game).get()) != nullptr,
+void test_c12_game_owns_its_session_and_driver() {
+  BootedGame booted;
+  require(dynamic_cast<c12::C12Session *>(booted.game().sessionState.get()) != nullptr, "C-12 created no C12Session");
+  require(dynamic_cast<c12::C12FrameDriver *>(booted.game().frameDriver.get()) != nullptr,
           "C-12 created no C12FrameDriver");
+  require(!c12::worldVisibility(booted.core()).active(), "a new C-12 session already holds visible cells");
 }
 
-void test_c12_declares_guest_interrupt_cd_delivery() {
+// No resident image, so only the module landing can make guest RAM executable.
+void test_c12_declares_runtime_code_module_window() {
   c12::C12Runtime runtime;
-  const auto *layout = runtime.guestCdStreamCallbackLayout();
-  require(layout != nullptr, "C-12 published no CD ready-callback layout");
-  require(layout->valid(), "C-12 declared no guest ready-callback slot");
-  require(layout->readyCallbackPointer == c12::kCdReadyCallbackSlotAddress,
-          "C-12 declared a ready-callback slot other than its measured libcd word");
-  require(layout->owner == GuestCdStreamCallbackLayout::DeliveryOwner::GuestInterrupt,
-          "C-12 handed CD completion to the host pump instead of its own CD interrupt path");
-  require(layout->readyStatus == c12::kCdReadyStatus, "C-12 declared a foreign completion code");
-}
-
-void test_c12_declares_runtime_code_module_window(GameRuntime &runtime) {
-  psxport_install_game(runtime);
-  auto game = std::make_unique<Game>();
+  auto game = std::make_unique<Game>(runtime, psx::config::Config{});
   Core &core = game->core;
   const GuestAddressRange window = guestCodeModuleWindow(core);
   require(window.valid(), "C-12 declared no window for its runtime-loaded code");
-  require(window.containsPhysical(c12::kCdReadyCallbackSlotAddress ^ 0x80000000u) == false,
+  require(!window.containsPhysical(c12::kCdReadyCallbackSlotAddress),
           "the C-12 module window swallowed a guest global");
   require(!core.currentImageIdentity(0x801211E0u).has_value(),
           "C-12 module RAM was already a residency before any module load");
   publishGuestCodeModuleLanding(core, {0x0011F9BCu, 0x001201BCu});
   require(core.currentImageIdentity(0x801211E0u).has_value(),
           "the measured GT.LVB module is still not executable after its load landed");
-  require(core.currentImageIdentity(c12::kCdReadyCallbackSlotAddress).has_value() == false,
+  require(!core.currentImageIdentity(c12::kCdReadyCallbackSlotAddress).has_value(),
           "a CD landing activated guest RAM outside the declared window");
 }
 
-void test_c12_declares_measured_packet_pool() {
-  c12::C12Runtime runtime;
-  const auto *windows = runtime.guestPacketPoolWindows();
-  require(windows != nullptr, "C-12 published no 2D packet pool");
-  require(windows->valid(), "C-12 declared an empty 2D packet pool");
-  require(windows->representation == GuestPacketPoolWindows::Representation::SingleWindow,
-          "C-12 declared a pool shape it does not use instead of its measured one window");
-  require(windows->base == c12::kPacketPoolLow, "C-12 declared a pool floor other than the measured one");
-  require(windows->end == c12::kPacketPoolHigh, "C-12 declared a pool top other than the measured one");
+void test_c12_packet_pool_is_its_measured_window() {
+  BootedGame booted;
+  const auto answer = booted.runtime().packetPool(booted.core());
+  require(answer.has_value(), "C-12 answered no packet pool");
+  const psx::gpu::PacketPoolExtent pool = answer.value_or(psx::gpu::PacketPoolExtent{});
+  require(pool.count == 1, "C-12 answered a pool shape other than its one measured window");
+  require(pool.low[0] == c12::kPacketPoolLow && pool.high[0] == c12::kPacketPoolHigh,
+          "C-12 answered a pool other than the measured one");
   for (const std::uint32_t head : {0x801AFF98u, 0x801B0F98u}) {
-    require(head >= windows->base && head < windows->end,
-            "a measured parity ordering table is outside the declared packet pool");
+    require(pool.contains(head), "a measured parity ordering table is outside the packet pool");
   }
-  require(windows->end > c12::kCdReadyCallbackSlotAddress,
-          "the declared packet pool stops below the band it was measured over");
+  require(!pool.contains(c12::kPacketPoolHigh), "the packet pool claims the word above its top");
 }
 
 void test_c12_widens_frustum_half_width_with_the_canvas() {
@@ -236,10 +185,9 @@ void test_c12_polygon_window_reject() {
 }
 
 void test_c12_widescreen_policy_follows_the_enhancement() {
-  c12::C12Runtime runtime;
-  psxport_install_game(runtime);
-  auto game = std::make_unique<Game>();
-  const GuestWidescreenProjection *policy = runtime.guestWidescreenProjection();
+  BootedGame booted;
+  Game *game = &booted.game();
+  const GuestWidescreenProjection *policy = booted.runtime().guestWidescreenProjection();
   require(policy != nullptr, "C-12 did not publish a widescreen policy");
   c12::widescreenCvar().set_text(psx::config::Layer::Runtime, "1");
   require(policy->presentationAspect(game->core) == PresentationAspect::Wide16x9,
@@ -253,27 +201,21 @@ void test_c12_widescreen_policy_follows_the_enhancement() {
 
 int main() {
   try {
-    c12::test::test_c12_declares_recorded_vsync_boundary();
-    c12::test::test_c12_installs_typed_frame_boundary_without_guest_override();
+    c12::test::test_c12_binds_its_vsync_as_the_frame_boundary();
     c12::test::test_c12_vsync_negative_query_answers_guest_counter();
-    c12::test::test_c12_does_not_admit_adjacent_guest_code();
+    c12::test::test_c12_cd_command_publishes_its_work_area();
+    c12::test::test_c12_cd_ready_is_delivered_by_its_interrupt();
     c12::test::test_c12_declares_the_record_path_without_producers();
-    c12::test::test_c12_game_installs_the_declared_render_path();
-    c12::test::test_c12_boot_entry_is_the_drivers();
-    c12::test::test_c12_declares_guest_interrupt_cd_delivery();
-    c12::C12Runtime runtime;
-    c12::test::test_c12_cd_work_area(runtime, true);
-    c12::test::UndeclaredCdWorkAreaRuntime undeclared;
-    c12::test::test_c12_cd_work_area(undeclared, false);
-    c12::test::test_c12_declares_runtime_code_module_window(runtime);
-    c12::test::test_c12_declares_measured_packet_pool();
+    c12::test::test_c12_game_owns_its_session_and_driver();
+    c12::test::test_c12_declares_runtime_code_module_window();
+    c12::test::test_c12_packet_pool_is_its_measured_window();
     c12::test::test_c12_widens_frustum_half_width_with_the_canvas();
     c12::test::test_c12_widens_the_polygon_window_margin();
     c12::test::test_c12_polygon_window_reject();
     c12::test::test_c12_widescreen_policy_follows_the_enhancement();
     lucent::info("c12.runtime",
-                 "PASS: C-12 VSync/query/admission, boot entry, stock CD work-area, CD ready-callback, "
-                 "runtime-code-module, 2D packet-pool and widescreen checks");
+                 "PASS: C-12 VSync and query, stock CD work area and interrupt delivery, record path, session, "
+                 "runtime-code-module, packet pool and widescreen checks");
     return 0;
   } catch (const std::exception &error) {
     lucent::error("c12.runtime", "FAIL: {}", error.what());

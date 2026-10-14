@@ -19,7 +19,7 @@ psx::config::IntVar cvDrawDistance("PSXPORT_C12_DRAW_DISTANCE",
                                    "of 25, 0 is retail (suppressed in comparison runs)",
                                    /*persistable=*/true);
 
-const std::array<TitleIntSetting, 1> kTitleIntSettings{{
+const std::array<psx::game::TitleIntSetting, 1> kTitleIntSettings{{
     {"draw_distance", "Draw Distance", "%", &cvDrawDistance, kDrawDistanceRange},
 }};
 
@@ -33,7 +33,7 @@ psx::config::IntVar &drawDistanceCvar() {
   return cvDrawDistance;
 }
 
-std::span<const TitleIntSetting> titleIntSettings() {
+std::span<const psx::game::TitleIntSetting> titleIntSettings() {
   return kTitleIntSettings;
 }
 

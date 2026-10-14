@@ -10,8 +10,8 @@ option(C12_BUILD_RUNTIME "Build the C-12 product and its runtime tests" ON)
 
 if(C12_BUILD_RUNTIME)
   set(PSXPORT_DIR "${CMAKE_CURRENT_SOURCE_DIR}/external/psxport" CACHE PATH "Shared psxport checkout")
-  if(NOT EXISTS "${PSXPORT_DIR}/runtime/psx/boot/psx_exe_image.h")
-    message(FATAL_ERROR "C-12 requires psxport with the bounded PS-X EXE image API at ${PSXPORT_DIR}")
+  if(NOT EXISTS "${PSXPORT_DIR}/runtime/psx/cd/stock_libcd.h")
+    message(FATAL_ERROR "C-12 requires psxport with the stock library classes at ${PSXPORT_DIR}")
   endif()
   add_subdirectory("${PSXPORT_DIR}" framework EXCLUDE_FROM_ALL)
 
@@ -40,6 +40,7 @@ if(C12_BUILD_RUNTIME)
     game/render/view_frustum.cpp
     game/render/world_mesh_pass.cpp
     game/runtime/c12_runtime.cpp
+    game/runtime/c12_session.cpp
     game/title/enhancements.cpp
     game/widescreen/widescreen_policy.cpp
   )
@@ -63,11 +64,6 @@ if(C12_BUILD_RUNTIME)
 endif()
 
 if(BUILD_TESTING)
-  add_test(
-    NAME c12_source_policy
-    COMMAND "${Python3_EXECUTABLE}" -B -m tools.source_policy
-  )
-  set_tests_properties(c12_source_policy PROPERTIES WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}")
   if(C12_BUILD_RUNTIME)
     add_executable(c12_frame_driver tests/test_frame_driver.cpp)
     target_link_libraries(c12_frame_driver PRIVATE c12_runtime)

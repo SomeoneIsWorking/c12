@@ -68,8 +68,4 @@ void WorldVisibility::clear() {
   active_ = false;
 }
 
-WorldVisibility &worldVisibility(Core &core) {
-  return *static_cast<WorldVisibility *>(core.gameCtx);
-}
-
 } // namespace c12
