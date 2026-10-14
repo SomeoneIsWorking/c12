@@ -15,8 +15,8 @@ namespace c12 {
 GuestFieldLoop::GuestFieldLoop(Game &game, Core &core) : game_(game), core_(core) {
 }
 
-void GuestFieldLoop::run(int frameLimit) {
-  while (frameLimit <= 0 || static_cast<int>(fields_) < frameLimit) {
+void GuestFieldLoop::run(std::uint64_t frameLimit) {
+  while (frameLimit == 0 || fields_ < frameLimit) {
     if (!stepField()) {
       return;
     }

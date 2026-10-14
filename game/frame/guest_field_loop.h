@@ -15,8 +15,8 @@ public:
 
   GuestFieldLoop(Game &game, Core &core);
 
-  // Steps fields until frameLimit (none when <= 0) or a turn that cannot resume.
-  void run(int frameLimit);
+  // Steps fields until frameLimit (none when 0) or a turn that cannot resume.
+  void run(std::uint64_t frameLimit);
 
   // One display field; false when run must stop.
   bool stepField();
