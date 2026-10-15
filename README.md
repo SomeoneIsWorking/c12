@@ -6,8 +6,8 @@ gameplay executable have been deleted before replacement work. They are not reta
 oracle.
 
 The product `c12_port` is psxport's framework `main` over C-12's one-title catalog
-(`game/entry/c12_catalog.cpp`): `ProductHost` authenticates the executable, `TitleSession` boots it,
-and `C12FrameDriver` owns one display field per step and presents the guest's own picture.
+(`game/entry/catalog.cpp`): `ProductHost` authenticates the executable, `TitleSession` boots it,
+and `c12::FrameDriver` owns one display field per step and presents the guest's own picture.
 `./run.sh` validates the configured user disc path and launches it with the extracted executable;
 with no argument the product provisions `scratch/bin/c12/SCUS_946.66` from the disc itself.
 

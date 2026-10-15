@@ -1,6 +1,6 @@
-#include "enhancements.h"
+#include "title/enhancements.h"
 
-#include "draw_distance.h"
+#include "render/draw_distance.h"
 
 #include <array>
 

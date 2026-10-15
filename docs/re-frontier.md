@@ -41,11 +41,11 @@ No further static product generation, build, or run is part of this chain.
 
 - status: crossed 2026-10-01
 - deps: runtime.recorded-boundary, psxport per-`Core` dynarec executor
-- evidence: `C12Runtime` publishes the recorded libetc VSync entry `0x800A1758`, its negative-query
+- evidence: `c12::Runtime` publishes the recorded libetc VSync entry `0x800A1758`, its negative-query
   vs-count `0x800EEB98` (zeroed by VSync setup `0x800B0DF8`, incremented by the callback dispatcher
   `0x800B0E50`), the stock libcd command entry `0x800B4CA8`, and its guest work area
   `0x800EEED0..D4`, now bound as psxport's `StockVSync` and `GuestInterruptLibcd` in
-  `C12Runtime::registerOverrides`. Three measured title facts joined it:
+  `c12::Runtime::registerOverrides`. Three measured title facts joined it:
   the libcd `CdReadyCallback` slot `0x800EEEBC` (written by `FUN_800AC158`, read by
   `FUN_800AF7EC`/`FUN_800AF4A8`) with `GuestInterrupt` delivery and completion code 1; the RAM
   arena `0x80105E40..0x801FFFF0` its loader allocates relocatable modules in; the 2D packet pool
@@ -57,14 +57,14 @@ No further static product generation, build, or run is part of this chain.
   typed frame boundaries, 92.5 M guest instructions, zero fallback blocks and zero faults. The read
   pump at `0x800AFB70` crosses its retry cycle and stays crossed: `CdRead: retry...` and
   `CdRead: sector error` are both absent from a 2,000-turn run. `c12_port` is now a real product
-  executable: its field owner (now `C12FrameDriver`) runs the guest to each VSync boundary and crosses
+  executable: its field owner (now `c12::FrameDriver`) runs the guest to each VSync boundary and crosses
   the framework's ONE presentation fence per field, which is what the `FramePresenter::capture OVERFLOW ... > RQ_MAX`
   refusal was about — the probe never committed a fence, so every field's prims accumulated.
   1,420 presented fields, 1,326 VSync boundaries, 0 fallback, 0 faults, with the loopback control
   channel answering `shot`/`r`/`w32` against the live Core.
 - where: `external/psxport` (`cd_ready_delivery.*`, `cdc_native.cpp`, `cd_override.cpp`,
   `guest_code_module.*`, `guest_packet_pool_windows.*`), `game/facts/title_facts.h`,
-  `game/frame/c12_frame_driver.*`, `game/entry/c12_catalog.cpp`
+  `game/frame/frame_driver.*`, `game/entry/catalog.cpp`
 - CLOSED as a capture artefact, not a product defect: the "alternate-raster-line loss" was measured
   only through `present_shot`, which loses alternate rows at some sink sizes on this host (512x240
   ratio 0.000, 1280x720 ratio 0.500, 512x480 ratio 1.004 on the default Vulkan driver; 512x240 on
@@ -160,7 +160,7 @@ No further static product generation, build, or run is part of this chain.
   and read 9 / write 10 once the briefing is continued.
 - where: `game/cd/cd_command_completion.{h,cpp}`, `game/facts/title_facts.h`
   (`kCdReadySyncAddress`, `kCdCommandStatusCallbackSlotAddress`),
-  `game/runtime/c12_runtime.cpp` (`registerOverrides`)
+  `game/runtime/runtime.cpp` (`registerOverrides`)
 - gap: the owner reproduces libcd's completion for the command-status response only. The
   command-acknowledge and error response types are still not delivered to the guest's own poll, so a
   command that fails reports failure only through the wrapper's own return value.

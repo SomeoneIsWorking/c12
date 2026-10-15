@@ -1,6 +1,6 @@
-#include "c12_frame_driver.h"
+#include "frame/frame_driver.h"
 
-#include "vsync_continuation.h"
+#include "frame/vsync_continuation.h"
 
 #include "core.h"
 #include "game.h"
@@ -13,10 +13,10 @@
 
 namespace c12 {
 
-C12FrameDriver::C12FrameDriver(Game &game) : game_(game) {
+FrameDriver::FrameDriver(Game &game) : game_(game) {
 }
 
-void C12FrameDriver::stepFrame(Core &core, std::uint32_t frame) {
+void FrameDriver::stepFrame(Core &core, std::uint32_t frame) {
   psx::frame::LogicFrame::begin(game_, frame);
 
   auto &executor = core.lightrecExecutor();

@@ -1,11 +1,11 @@
 #include "booted_game.h"
-#include "c12_frame_driver.h"
-#include "c12_runtime.h"
-#include "c12_session.h"
-#include "enhancements.h"
-#include "title_facts.h"
-#include "view_frustum.h"
-#include "world_mesh_pass.h"
+#include "facts/title_facts.h"
+#include "frame/frame_driver.h"
+#include "render/view_frustum.h"
+#include "render/world_mesh_pass.h"
+#include "runtime/runtime.h"
+#include "runtime/session.h"
+#include "title/enhancements.h"
 
 #include "core.h"
 #include "execution_control.h"
@@ -112,7 +112,7 @@ void test_c12_cd_ready_is_delivered_by_its_interrupt() {
 }
 
 void test_c12_declares_the_record_path_without_producers() {
-  c12::C12Runtime runtime;
+  c12::Runtime runtime;
   const RenderCapabilities capabilities = runtime.renderCapabilities();
   require(capabilities.defaultPath == RenderPath::Record, "C-12 does not default to the record path");
   require(!capabilities.nativeRenderPath && !capabilities.supports(RenderPath::Native),
@@ -125,15 +125,14 @@ void test_c12_declares_the_record_path_without_producers() {
 
 void test_c12_game_owns_its_session_and_driver() {
   BootedGame booted;
-  require(dynamic_cast<c12::C12Session *>(booted.game().sessionState.get()) != nullptr, "C-12 created no C12Session");
-  require(dynamic_cast<c12::C12FrameDriver *>(booted.game().frameDriver.get()) != nullptr,
-          "C-12 created no C12FrameDriver");
+  require(dynamic_cast<c12::Session *>(booted.game().sessionState.get()) != nullptr, "C-12 created no Session");
+  require(dynamic_cast<c12::FrameDriver *>(booted.game().frameDriver.get()) != nullptr, "C-12 created no FrameDriver");
   require(!c12::worldVisibility(booted.core()).active(), "a new C-12 session already holds visible cells");
 }
 
 // No resident image, so only the module landing can make guest RAM executable.
 void test_c12_declares_runtime_code_module_window() {
-  c12::C12Runtime runtime;
+  c12::Runtime runtime;
   auto game = std::make_unique<Game>(runtime, psx::config::Config{});
   Core &core = game->core;
   const GuestAddressRange window = guestCodeModuleWindow(core);

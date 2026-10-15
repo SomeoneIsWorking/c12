@@ -1,7 +1,7 @@
-#include "cell_output.h"
+#include "render/cell_output.h"
 
 #include "core.h"
-#include "title_facts.h"
+#include "facts/title_facts.h"
 
 #include <algorithm>
 #include <utility>

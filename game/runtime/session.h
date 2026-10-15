@@ -1,15 +1,15 @@
-// c12_session.h — C-12's per-Core state, created with each Game.
+// session.h — C-12's per-Core state, created with each Game.
 
 #pragma once
 
-#include "cell_output.h"
 #include "game_runtime.h"
+#include "render/cell_output.h"
 
 class Core;
 
 namespace c12 {
 
-class C12Session final : public psx::game::TitleSessionState {
+class Session final : public psx::game::TitleSessionState {
 public:
   WorldVisibility visibility;
 };

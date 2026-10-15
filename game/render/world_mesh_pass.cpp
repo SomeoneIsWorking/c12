@@ -1,16 +1,16 @@
-#include "world_mesh_pass.h"
+#include "render/world_mesh_pass.h"
 
-#include "c12_session.h"
-#include "cell_output.h"
 #include "core.h"
-#include "draw_distance.h"
-#include "fog_table.h"
+#include "facts/title_facts.h"
 #include "game.h"
 #include "gte.h"
 #include "gte_registers.h"
 #include "guest_widescreen_projection.h"
 #include "native_dispatch.h"
-#include "title_facts.h"
+#include "render/cell_output.h"
+#include "render/draw_distance.h"
+#include "render/fog_table.h"
+#include "runtime/session.h"
 
 #include <lucent/log.h>
 

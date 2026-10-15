@@ -7,8 +7,8 @@
 
 #pragma once
 
-#include "cell_output.h"
-#include "draw_distance.h"
+#include "render/cell_output.h"
+#include "render/draw_distance.h"
 
 #include <array>
 #include <cstdint>

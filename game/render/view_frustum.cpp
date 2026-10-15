@@ -1,12 +1,12 @@
-#include "view_frustum.h"
+#include "render/view_frustum.h"
 
 #include "core.h"
 #include "execution_control.h"
+#include "facts/title_facts.h"
 #include "game.h"
 #include "guest_call.h"
 #include "guest_widescreen_projection.h"
 #include "native_dispatch.h"
-#include "title_facts.h"
 
 #include <lucent/log.h>
 

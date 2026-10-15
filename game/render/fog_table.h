@@ -6,7 +6,7 @@
 
 #pragma once
 
-#include "draw_distance.h"
+#include "render/draw_distance.h"
 
 #include <cstdint>
 #include <span>

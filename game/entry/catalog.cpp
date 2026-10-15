@@ -1,7 +1,7 @@
-#include "c12_catalog.h"
+#include "entry/catalog.h"
 
-#include "c12_runtime.h"
 #include "executable_identity.h"
+#include "runtime/runtime.h"
 #include "single_title_catalog.h"
 
 namespace c12 {
@@ -25,7 +25,7 @@ constexpr psx::host::TitleIdentity kTitleIdentity{
 } // namespace
 
 std::unique_ptr<psx::host::TitleCatalog> createCatalog() {
-  return std::make_unique<psx::host::SingleTitleCatalog>(kTitleIdentity, "scratch/bin", std::make_unique<C12Runtime>());
+  return std::make_unique<psx::host::SingleTitleCatalog>(kTitleIdentity, "scratch/bin", std::make_unique<Runtime>());
 }
 
 } // namespace c12

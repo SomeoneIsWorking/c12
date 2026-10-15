@@ -3,14 +3,14 @@
 #include "game_runtime.h"
 #include "stock_libcd.h"
 #include "stock_vsync.h"
-#include "widescreen_policy.h"
+#include "widescreen/widescreen_policy.h"
 
 namespace c12 {
 
-// Runs the guest startup unmodified from the executable entry; C12FrameDriver owns each field.
-class C12Runtime final : public psx::game::GameRuntime {
+// Runs the guest startup unmodified from the executable entry; FrameDriver owns each field.
+class Runtime final : public psx::game::GameRuntime {
 public:
-  C12Runtime();
+  Runtime();
   void registerOverrides(Game &game) override;
   std::unique_ptr<psx::game::TitleSessionState> createSession(Game &game) override;
   std::unique_ptr<psx::game::FrameDriver> createFrameDriver(Game &game) override;

@@ -1,10 +1,10 @@
-// C12FrameDriver through the shipping runtime and FrameLoopShell, over synthetic guests written at the
+// FrameDriver through the shipping runtime and FrameLoopShell, over synthetic guests written at the
 // executable's entry and calling the title's measured VSync address.
 
 #include "booted_game.h"
-#include "c12_frame_driver.h"
 #include "executable_identity.h"
-#include "title_facts.h"
+#include "facts/title_facts.h"
+#include "frame/frame_driver.h"
 
 #include "core.h"
 #include "frame_loop_shell.h"
@@ -85,8 +85,8 @@ public:
   Game &game() {
     return booted_.game();
   }
-  C12FrameDriver &driver() {
-    return dynamic_cast<C12FrameDriver &>(*booted_.game().frameDriver);
+  FrameDriver &driver() {
+    return dynamic_cast<FrameDriver &>(*booted_.game().frameDriver);
   }
 
 private:
@@ -121,7 +121,7 @@ int main() {
   try {
     c12::test::test_every_step_is_one_turn_one_boundary_and_one_fence();
     c12::test::test_an_unresumable_turn_ends_the_run_after_its_fence();
-    lucent::info("c12.frame", "PASS: C12FrameDriver steps, boundaries, resume and run end");
+    lucent::info("c12.frame", "PASS: FrameDriver steps, boundaries, resume and run end");
     return 0;
   } catch (const std::exception &error) {
     lucent::error("c12.frame", "FAIL: {}", error.what());

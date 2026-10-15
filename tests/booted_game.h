@@ -2,8 +2,8 @@
 
 #pragma once
 
-#include "c12_runtime.h"
 #include "executable_identity.h"
+#include "runtime/runtime.h"
 
 #include "core.h"
 #include "game.h"
@@ -51,7 +51,7 @@ public:
   BootedGame(BootedGame &&) = delete;
   BootedGame &operator=(BootedGame &&) = delete;
 
-  C12Runtime &runtime() {
+  Runtime &runtime() {
     return runtime_;
   }
   Game &game() {
@@ -62,7 +62,7 @@ public:
   }
 
 private:
-  C12Runtime runtime_;
+  Runtime runtime_;
   std::unique_ptr<Game> game_;
 };
 

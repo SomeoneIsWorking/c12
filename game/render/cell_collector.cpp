@@ -1,15 +1,15 @@
-#include "cell_collector.h"
+#include "render/cell_collector.h"
 
-#include "c12_session.h"
+#include "runtime/session.h"
 
 #include "core.h"
+#include "facts/title_facts.h"
 #include "game.h"
 #include "gte.h"
 #include "gte_control.h"
 #include "gte_registers.h"
 #include "guest_call.h"
 #include "native_dispatch.h"
-#include "title_facts.h"
 
 #include <lucent/log.h>
 

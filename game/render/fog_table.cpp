@@ -1,7 +1,7 @@
-#include "fog_table.h"
+#include "render/fog_table.h"
 
 #include "core.h"
-#include "title_facts.h"
+#include "facts/title_facts.h"
 
 #include <algorithm>
 

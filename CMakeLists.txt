@@ -31,7 +31,7 @@ if(C12_BUILD_RUNTIME)
 
   add_library(c12_runtime STATIC
     game/cd/cd_command_completion.cpp
-    game/frame/c12_frame_driver.cpp
+    game/frame/frame_driver.cpp
     game/frame/vsync_continuation.cpp
     game/render/cell_collector.cpp
     game/render/cell_output.cpp
@@ -39,28 +39,21 @@ if(C12_BUILD_RUNTIME)
     game/render/fog_table.cpp
     game/render/view_frustum.cpp
     game/render/world_mesh_pass.cpp
-    game/runtime/c12_runtime.cpp
-    game/runtime/c12_session.cpp
+    game/runtime/runtime.cpp
+    game/runtime/session.cpp
     game/title/enhancements.cpp
     game/widescreen/widescreen_policy.cpp
   )
   target_link_libraries(c12_runtime PUBLIC psxport)
   target_include_directories(c12_runtime PUBLIC
-    "${CMAKE_CURRENT_SOURCE_DIR}/game/cd"
-    "${CMAKE_CURRENT_SOURCE_DIR}/game/facts"
-    "${CMAKE_CURRENT_SOURCE_DIR}/game/frame"
-    "${CMAKE_CURRENT_SOURCE_DIR}/game/render"
-    "${CMAKE_CURRENT_SOURCE_DIR}/game/runtime"
-    "${CMAKE_CURRENT_SOURCE_DIR}/game/title"
-    "${CMAKE_CURRENT_SOURCE_DIR}/game/widescreen"
+    "${CMAKE_CURRENT_SOURCE_DIR}/game"
     "${CMAKE_CURRENT_BINARY_DIR}/metadata")
   psxport_add_product(
     c12_port
     CATALOG c12::createCatalog
-    HEADER c12_catalog.h
-    SOURCES game/entry/c12_catalog.cpp
+    HEADER entry/catalog.h
+    SOURCES game/entry/catalog.cpp
     LIBRARIES c12_runtime)
-  target_include_directories(c12_port PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/game/entry")
 endif()
 
 if(BUILD_TESTING)

@@ -1,7 +1,7 @@
-#include "widescreen_policy.h"
+#include "widescreen/widescreen_policy.h"
 
 #include "enhancement_gate.h"
-#include "enhancements.h"
+#include "title/enhancements.h"
 
 namespace c12 {
 

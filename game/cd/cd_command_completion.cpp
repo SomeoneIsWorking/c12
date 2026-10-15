@@ -1,12 +1,12 @@
-#include "cd_command_completion.h"
+#include "cd/cd_command_completion.h"
 
 #include "core.h"
 #include "execution_control.h"
 #include "execution_exit.h"
+#include "facts/title_facts.h"
 #include "game.h"
 #include "guest_call.h"
 #include "native_dispatch.h"
-#include "title_facts.h"
 
 #include <lucent/log.h>
 

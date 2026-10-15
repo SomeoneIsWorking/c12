@@ -1,4 +1,4 @@
-#include "vsync_continuation.h"
+#include "frame/vsync_continuation.h"
 
 #include "core.h"
 #include "image_identity.h"

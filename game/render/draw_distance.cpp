@@ -1,7 +1,7 @@
-#include "draw_distance.h"
+#include "render/draw_distance.h"
 
 #include "enhancement_gate.h"
-#include "enhancements.h"
+#include "title/enhancements.h"
 
 namespace c12 {
 

@@ -7,10 +7,10 @@ framework side is `external/psxport/docs/codemap.md`.
 
 | owner | path | owns |
 |---|---|---|
-| `createCatalog` | `game/entry/c12_catalog.*` | The one-title catalog: `TitleIdentity` from `title.json` and a `C12Runtime` |
-| `C12Runtime` | `game/runtime/c12_runtime.*` | The `GameRuntime`: stock VSync and libcd objects bound in `registerOverrides`, the native overrides, session, frame driver, module window, packet pool, Record path, run report |
-| `C12Session`, `worldVisibility` | `game/runtime/c12_session.*` | Per-Core title state: the frame's extended cell list |
-| `C12FrameDriver` | `game/frame/c12_frame_driver.*` | One field: logic frame, one bounded guest turn, one commit, audio |
+| `createCatalog` | `game/entry/catalog.*` | The one-title catalog: `TitleIdentity` from `title.json` and a `c12::Runtime` |
+| `c12::Runtime` | `game/runtime/runtime.*` | The `GameRuntime`: stock VSync and libcd objects bound in `registerOverrides`, the native overrides, session, frame driver, module window, packet pool, Record path, run report |
+| `c12::Session`, `worldVisibility` | `game/runtime/session.*` | Per-Core title state: the frame's extended cell list |
+| `c12::FrameDriver` | `game/frame/frame_driver.*` | One field: logic frame, one bounded guest turn, one commit, audio |
 | `resumeVsyncContinuation` | `game/frame/vsync_continuation.*` | Resuming at a VSync continuation in `r31`, or refusing it |
 | `completeCdReadySyncCommand` | `game/cd/cd_command_completion.*` | `CdReadySync` (`0x800ABD98`) and the command-status completion it owes |
 | `rebuildViewFrustumCorners` | `game/render/view_frustum.*` | `FUN_800660D8`, widened with the canvas |
@@ -30,8 +30,8 @@ framework side is `external/psxport/docs/codemap.md`.
 
 ## Where new work goes
 
-- A guest function C-12 replaces → `game/<subsystem>/`, installed from `C12Runtime::registerOverrides`.
-- Per-Core title state → `C12Session`.
+- A guest function C-12 replaces → `game/<subsystem>/`, installed from `c12::Runtime::registerOverrides`.
+- Per-Core title state → `c12::Session`.
 - A measured guest address → `game/facts/title_facts.h`, with its evidence in `docs/re-frontier.md`.
 - A title knob → `game/title/enhancements.*` and `docs/config.md`.
 - Anything every title shares → psxport, not here.

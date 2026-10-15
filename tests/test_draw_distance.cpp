@@ -1,12 +1,12 @@
-#include "c12_runtime.h"
-#include "cell_collector.h"
-#include "cell_output.h"
 #include "core.h"
-#include "draw_distance.h"
-#include "enhancements.h"
-#include "fog_table.h"
+#include "facts/title_facts.h"
 #include "game.h"
-#include "title_facts.h"
+#include "render/cell_collector.h"
+#include "render/cell_output.h"
+#include "render/draw_distance.h"
+#include "render/fog_table.h"
+#include "runtime/runtime.h"
+#include "title/enhancements.h"
 
 #include <array>
 #include <cstdint>
@@ -76,7 +76,7 @@ void fillRecords(Core &core, std::uint32_t count) {
 }
 
 void test_guest_buffers_stay_at_retail_size() {
-  C12Runtime runtime;
+  Runtime runtime;
   auto game = std::make_unique<Game>(runtime, psx::config::Config{});
   Core &core = game->core;
   fillRecords(core, 200);
@@ -104,7 +104,7 @@ void test_guest_buffers_stay_at_retail_size() {
 }
 
 void test_host_list_holds_more_cells_than_the_guest_window() {
-  C12Runtime runtime;
+  Runtime runtime;
   auto game = std::make_unique<Game>(runtime, psx::config::Config{});
   Core &core = game->core;
   fillRecords(core, 600);

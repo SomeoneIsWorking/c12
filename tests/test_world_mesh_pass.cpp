@@ -1,4 +1,4 @@
-#include "world_mesh_pass.h"
+#include "render/world_mesh_pass.h"
 
 #include <array>
 #include <lucent/log.h>
