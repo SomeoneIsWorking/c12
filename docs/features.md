@@ -31,8 +31,7 @@ Title hops only. Each row is where C-12 joins a psxport feature hop (`psxport F-
 
 | hop | joins | owner |
 |---|---|---|
-| 1 | psxport F-RENDER.1 | `game/runtime/runtime.cpp:c12::Runtime::renderCapabilities` — Record, no producers, guest VRAM is the picture |
-| 2 | psxport F-RENDER.2 | `game/runtime/runtime.cpp:c12::Runtime::packetPool` — one window `0x800E3DE4..0x801B0F9C` |
+| 1 | psxport F-RENDER.2 | `game/runtime/runtime.cpp:c12::Runtime::packetPool` — one window `0x800E3DE4..0x801B0F9C` |
 
 ## F-WIDE
 

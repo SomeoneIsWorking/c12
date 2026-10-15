@@ -546,7 +546,7 @@ void collectVisibleCells(Core *host) {
   if (distance.increased()) {
     HostCellOutput extended;
     {
-      psx::present::GteGuard gte;
+      const psx::present::GteGuard gte(core.gte());
       CellCollector(core, distance, extended, std::numeric_limits<std::uint32_t>::max()).run(camera);
     }
     visibility.publish(extended.release());

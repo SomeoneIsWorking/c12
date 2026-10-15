@@ -10,6 +10,7 @@
 #include "frame_loop_shell.h"
 #include "game.h"
 
+#include <SDL3/SDL.h>
 #include <lucent/log.h>
 
 #include <array>
@@ -118,6 +119,8 @@ void test_an_unresumable_turn_ends_the_run_after_its_fence() {
 } // namespace c12::test
 
 int main() {
+  // Each step presents through a real (headless) GPU device.
+  SDL_SetHintWithPriority(SDL_HINT_VIDEO_DRIVER, "offscreen", SDL_HINT_OVERRIDE);
   try {
     c12::test::test_every_step_is_one_turn_one_boundary_and_one_fence();
     c12::test::test_an_unresumable_turn_ends_the_run_after_its_fence();

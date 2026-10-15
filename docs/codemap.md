@@ -24,7 +24,7 @@ framework side is `external/psxport/docs/codemap.md`.
 | measured addresses | `game/facts/title_facts.h` | Guest addresses the title's own code reads; evidence in `docs/re-frontier.md` |
 | executable identity | `game/facts/executable_identity.h.in` | Generated from `title.json` |
 | launcher | `tools/launcher.py`, `tools/config.py`, `tools/title_identity.py` | Disc resolution, extraction and authentication for the zero-argument launch |
-| framework fetch, verify | `tools/psxport_fetch.py`, `tools/verify.py` | The `external/psxport` link and the asset-free gate |
+| framework fetch, verify | `tools/launcher.py:ensure_framework`, `tools/verify.py` | The `external/psxport` fetch (psxport `tools/psxport_fetch.py`) and the asset-free gate |
 | tests | `tests/` | Runtime services and bindings, the frame driver over synthetic guests, draw distance, the terrain pass |
 | replays | `replays/first-mission/` | Boot to the first mission and a run right then left (`PSXPORT_PAD_REPLAY`) |
 

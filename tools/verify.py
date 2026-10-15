@@ -8,7 +8,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 FRAMEWORK = ROOT / "external" / "psxport"
 if not (FRAMEWORK / "tools" / "port" / "consumer_verify.py").is_file():
-    raise SystemExit(f"C-12 verification requires the shared psxport checkout at {FRAMEWORK}")
+    raise SystemExit(f"C-12 verification requires psxport at {FRAMEWORK}; run `uv run --no-project https://raw.githubusercontent.com/SomeoneIsWorking/psxport/main/tools/psxport_fetch.py --auto`")
 sys.path.insert(0, str(FRAMEWORK / "tools"))
 
 from port.consumer_verify import ConsumerVerifyConfig, run_consumer_verification

@@ -16,8 +16,6 @@ public:
   std::unique_ptr<psx::game::FrameDriver> createFrameDriver(Game &game) override;
   GuestAddressRange guestCodeModuleWindow() const override;
   std::optional<psx::gpu::PacketPoolExtent> packetPool(Core &core) const override;
-  RenderCapabilities renderCapabilities() const override;
-  bool guestVramIsPicture(const Game &game) const override;
   const GuestWidescreenProjection *guestWidescreenProjection() const override;
   void reportRun(Core &core) const override;
   std::span<const psx::game::TitleIntSetting> titleIntSettings() const override;

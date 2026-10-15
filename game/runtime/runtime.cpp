@@ -18,7 +18,7 @@ namespace c12 {
 
 // Only CD_cw is stock; CdReadySync is the title's own completion owner (cd_command_completion).
 Runtime::Runtime()
-    : vsync_(kVSyncAddress, kVSyncQueryCounterAddress),
+    : vsync_({.entry = kVSyncAddress, .queryCounter = kVSyncQueryCounterAddress}),
       libcd_({.command = kCdCommandAddress},
              {.lastPositionAddress = kCdLastPositionAddress, .lastModeAddress = kCdLastModeAddress},
              kCdReadyCallbackSlotAddress,
@@ -48,19 +48,6 @@ GuestAddressRange Runtime::guestCodeModuleWindow() const {
 
 std::optional<psx::gpu::PacketPoolExtent> Runtime::packetPool(Core &core) const {
   return kPacketPoolWindows.extent(core);
-}
-
-RenderCapabilities Runtime::renderCapabilities() const {
-  // The picture is the guest's GP0 output replayed from the frame record; no native producers.
-  return RenderCapabilities{
-      .defaultPath = RenderPath::Record,
-      .nativeRenderPath = false,
-  };
-}
-
-bool Runtime::guestVramIsPicture(const Game &) const {
-  // No native producer: the guest's GP0 stream is the whole picture.
-  return true;
 }
 
 const GuestWidescreenProjection *Runtime::guestWidescreenProjection() const {

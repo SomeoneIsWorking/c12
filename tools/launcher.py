@@ -17,10 +17,23 @@ LOGGER = logging.getLogger("c12.launcher")
 EXTRACTED = ROOT / "scratch" / "c12-identity"
 DISCDUMP = ROOT / "build" / "maintainer" / "framework" / "tools" / "discdump"
 PRODUCT = ROOT / "build" / "maintainer" / "c12_port"
+FRAMEWORK_FETCH = ["uv", "run", "--no-project", "https://raw.githubusercontent.com/SomeoneIsWorking/psxport/main/tools/psxport_fetch.py", "--auto"]
 
 
 class ProvisioningError(RuntimeError):
     """The available inputs cannot support the authenticated product."""
+
+
+def ensure_framework() -> None:
+    """Fetch `external/psxport` through psxport's own tool when this clone has none."""
+    if (ROOT / "external" / "psxport" / "cmake" / "psxport.cmake").is_file():
+        return
+    try:
+        completed = subprocess.run(FRAMEWORK_FETCH, cwd=ROOT, check=False)
+    except OSError as error:
+        raise ProvisioningError(f"could not run the framework fetch: {error}") from error
+    if completed.returncode != 0:
+        raise ProvisioningError(f"the framework fetch failed ({completed.returncode})")
 
 
 def _discdump(*args: str) -> None:
@@ -69,6 +82,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     )
     args = parser.parse_args(argv)
     try:
+        ensure_framework()
         config = resolve_config(ROOT, args.disc, os.environ)
         executable = provision(config.disc)
     except (ConfigurationError, ProvisioningError) as error:

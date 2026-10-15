@@ -111,12 +111,8 @@ void test_c12_cd_ready_is_delivered_by_its_interrupt() {
   require(libcd->deliversOnInterrupt(), "C-12 handed CD completion to the host pump instead of its INT1 service");
 }
 
-void test_c12_declares_the_record_path_without_producers() {
+void test_c12_presents_on_the_record_path_without_interpolation() {
   c12::Runtime runtime;
-  const RenderCapabilities capabilities = runtime.renderCapabilities();
-  require(capabilities.defaultPath == RenderPath::Record, "C-12 does not default to the record path");
-  require(!capabilities.nativeRenderPath && !capabilities.supports(RenderPath::Native),
-          "C-12 declared a native render path it has no producers for");
   require(!runtime.interpolates(), "C-12 declared an interpolation product it does not own");
   BootedGame booted;
   require(booted.core().rsub.mode.path() == RenderPath::Record,
@@ -135,13 +131,13 @@ void test_c12_declares_runtime_code_module_window() {
   c12::Runtime runtime;
   auto game = std::make_unique<Game>(runtime, psx::config::Config{});
   Core &core = game->core;
-  const GuestAddressRange window = guestCodeModuleWindow(core);
+  const GuestAddressRange window = core.runtime.guestCodeModuleWindow();
   require(window.valid(), "C-12 declared no window for its runtime-loaded code");
   require(!window.containsPhysical(c12::kCdReadyCallbackSlotAddress),
           "the C-12 module window swallowed a guest global");
   require(!core.currentImageIdentity(0x801211E0u).has_value(),
           "C-12 module RAM was already a residency before any module load");
-  publishGuestCodeModuleLanding(core, {0x0011F9BCu, 0x001201BCu});
+  psx::code_module::publishLanding(core, {0x0011F9BCu, 0x001201BCu});
   require(core.currentImageIdentity(0x801211E0u).has_value(),
           "the measured GT.LVB module is still not executable after its load landed");
   require(!core.currentImageIdentity(c12::kCdReadyCallbackSlotAddress).has_value(),
@@ -204,7 +200,7 @@ int main() {
     c12::test::test_c12_vsync_negative_query_answers_guest_counter();
     c12::test::test_c12_cd_command_publishes_its_work_area();
     c12::test::test_c12_cd_ready_is_delivered_by_its_interrupt();
-    c12::test::test_c12_declares_the_record_path_without_producers();
+    c12::test::test_c12_presents_on_the_record_path_without_interpolation();
     c12::test::test_c12_game_owns_its_session_and_driver();
     c12::test::test_c12_declares_runtime_code_module_window();
     c12::test::test_c12_packet_pool_is_its_measured_window();
